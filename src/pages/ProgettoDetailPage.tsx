@@ -2089,27 +2089,11 @@ const emptyCredForm: CredForm = {
   nome: '', tipo: 'account', url: '', username: '', password_encrypted: '', api_key: '', note: '',
 }
 
-const CRED_SESSION_KEY = 'agentics_cred_auth'
-const CRED_SESSION_TTL = 30 * 60 * 1000 // 30 minutes
-
-function isSessionValid(): boolean {
-  try {
-    const raw = sessionStorage.getItem(CRED_SESSION_KEY)
-    if (!raw) return false
-    const { ts } = JSON.parse(raw)
-    return Date.now() - ts < CRED_SESSION_TTL
-  } catch { return false }
-}
-
-function setSessionValid() {
-  sessionStorage.setItem(CRED_SESSION_KEY, JSON.stringify({ ts: Date.now() }))
-}
-
 type AuthStep = 'password' | 'totp' | 'done'
 const TOTP_CODE_LENGTH = 6
 
 const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logActivity: (a: string, d?: string) => Promise<void> }) => {
-  const [authorized, setAuthorized] = useState(() => isSessionValid())
+  const [authorized, setAuthorized] = useState(false)
   const [authChecking, setAuthChecking] = useState(true)
   const [authStep, setAuthStep] = useState<AuthStep>('password')
   const [authPassword, setAuthPassword] = useState('')
@@ -2135,14 +2119,6 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
       const { data: { user } } = await supabase.auth.getUser()
       const email = user?.email ?? ''
       setUserEmail(email)
-      if (email !== AUTHORIZED_EMAIL) {
-        setAuthChecking(false)
-        return
-      }
-      if (isSessionValid()) {
-        setAuthorized(true)
-        setAuthStep('done')
-      }
       setAuthChecking(false)
     })()
   }, [])
@@ -2176,7 +2152,6 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
       const { error: vErr } = await supabase.auth.mfa.verify({ factorId: totp.id, challengeId: challenge.id, code })
       if (vErr) throw vErr
 
-      setSessionValid()
       setAuthorized(true)
       setAuthStep('done')
     } catch (err: unknown) {
