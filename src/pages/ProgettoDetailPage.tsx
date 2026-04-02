@@ -2242,13 +2242,79 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
     }
   }
 
-  const removeCred = async () => {
-    if (!deleteId) return
-    const c = creds.find(x => x.id === deleteId)
-    await supabase.from('progetto_credenziali').delete().eq('id', deleteId)
-    setDeleteId(null)
-    if (c) await logActivity('Credenziale eliminata', `"${c.nome}"`)
-    loadCreds()
+  const [delStep, setDelStep] = useState<'password' | 'totp' | 'ready'>('password')
+  const [delPassword, setDelPassword] = useState('')
+  const [delTotpDigits, setDelTotpDigits] = useState<string[]>(Array(TOTP_CODE_LENGTH).fill(''))
+  const [delError, setDelError] = useState('')
+  const [delLoading, setDelLoading] = useState(false)
+  const delTotpRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  const openDelete = (id: string) => {
+    setDeleteId(id)
+    setDelStep('password')
+    setDelPassword('')
+    setDelTotpDigits(Array(TOTP_CODE_LENGTH).fill(''))
+    setDelError('')
+  }
+
+  const handleDelPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setDelLoading(true); setDelError('')
+    const { ok, error } = await verifyPassword(userEmail, delPassword)
+    if (!ok) { setDelError(error ?? 'Password non valida.'); setDelLoading(false); return }
+    setDelLoading(false); setDelStep('totp')
+    setDelTotpDigits(Array(TOTP_CODE_LENGTH).fill(''))
+    setTimeout(() => delTotpRefs.current[0]?.focus(), 50)
+  }
+
+  const handleDelTotp = async (code: string) => {
+    setDelLoading(true); setDelError('')
+    try {
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const totp = factors?.totp?.[0]
+      if (!totp) { setDelError('Nessun fattore TOTP trovato.'); setDelLoading(false); return }
+      const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId: totp.id })
+      if (chErr) throw chErr
+      const { error: vErr } = await supabase.auth.mfa.verify({ factorId: totp.id, challengeId: challenge.id, code })
+      if (vErr) throw vErr
+      setDelStep('ready')
+      if (!deleteId) return
+      const c = creds.find(x => x.id === deleteId)
+      await supabase.from('progetto_credenziali').delete().eq('id', deleteId)
+      setDeleteId(null)
+      if (c) await logActivity('Credenziale eliminata', `"${c.nome}"`)
+      loadCreds()
+    } catch (err: unknown) {
+      setDelError(err instanceof Error ? err.message : 'Codice non valido.')
+      setDelTotpDigits(Array(TOTP_CODE_LENGTH).fill(''))
+      delTotpRefs.current[0]?.focus()
+    } finally {
+      setDelLoading(false)
+    }
+  }
+
+  const handleDelTotpDigit = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return
+    const next = [...delTotpDigits]
+    next[index] = value.slice(-1)
+    setDelTotpDigits(next)
+    if (value && index < TOTP_CODE_LENGTH - 1) delTotpRefs.current[index + 1]?.focus()
+    if (next.every(d => d !== '')) handleDelTotp(next.join(''))
+  }
+
+  const handleDelTotpKey = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !delTotpDigits[index] && index > 0) delTotpRefs.current[index - 1]?.focus()
+  }
+
+  const handleDelTotpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, TOTP_CODE_LENGTH)
+    if (!text) return
+    const next = Array(TOTP_CODE_LENGTH).fill('')
+    text.split('').forEach((ch, i) => { next[i] = ch })
+    setDelTotpDigits(next)
+    delTotpRefs.current[Math.min(text.length, TOTP_CODE_LENGTH - 1)]?.focus()
+    if (text.length === TOTP_CODE_LENGTH) handleDelTotp(text)
   }
 
   const toggleReveal = (credId: string, field: string) => {
@@ -2456,7 +2522,7 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => openEdit(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil style={{ width: 13, height: 13 }} /></button>
-                    <button onClick={() => setDeleteId(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 style={{ width: 13, height: 13 }} /></button>
+                    <button onClick={() => openDelete(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 style={{ width: 13, height: 13 }} /></button>
                   </div>
                 </div>
                 <div style={{ padding: '8px 20px 12px' }}>
@@ -2519,13 +2585,89 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
         </form>
       </Modal>
 
-      {/* Delete modal */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Elimina credenziale" width="360px">
-        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Eliminare questa credenziale? L'operazione non è reversibile.</p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" onClick={() => setDeleteId(null)}>Annulla</Button>
-          <Button variant="danger" onClick={removeCred}>Elimina</Button>
+      {/* Delete modal — password + TOTP required */}
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Elimina credenziale" width="420px">
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%', backgroundColor: '#FEF2F2',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
+          }}>
+            <Trash2 style={{ width: 20, height: 20, color: '#DC2626' }} />
+          </div>
+          <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 4 }}>Eliminare questa credenziale? <strong>L'operazione non è reversibile.</strong></p>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Conferma la tua identità con password e codice 2FA.</p>
         </div>
+
+        {/* Step indicator */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 20 }}>
+          <div style={{
+            padding: '3px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+            backgroundColor: delStep === 'password' ? '#DC2626' : '#15803D', color: '#fff',
+          }}>
+            {delStep === 'password' ? '1. Password' : '✓ Password'}
+          </div>
+          <div style={{
+            padding: '3px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+            backgroundColor: delStep === 'totp' ? '#DC2626' : '#E5E7EB',
+            color: delStep === 'totp' ? '#fff' : '#9CA3AF',
+          }}>
+            2. Codice 2FA
+          </div>
+        </div>
+
+        {delError && (
+          <div style={{ borderLeft: '3px solid #DC2626', backgroundColor: '#FEF2F2', padding: '8px 12px', marginBottom: 14 }}>
+            <p style={{ fontSize: 12, color: '#991B1B' }}>{delError}</p>
+          </div>
+        )}
+
+        {delStep === 'password' && (
+          <form onSubmit={handleDelPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <FormField label="Password" required>
+              <Input type="password" value={delPassword} onChange={e => setDelPassword(e.target.value)} placeholder="Inserisci la tua password" autoFocus />
+            </FormField>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Button type="button" variant="ghost" onClick={() => setDeleteId(null)}>Annulla</Button>
+              <Button type="submit" variant="danger" disabled={delLoading || !delPassword}>{delLoading ? 'Verifica...' : 'Continua →'}</Button>
+            </div>
+          </form>
+        )}
+
+        {delStep === 'totp' && (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 12, color: '#6C7F94', marginBottom: 16 }}>Inserisci il codice a 6 cifre dalla tua app Authenticator.</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 16 }} onPaste={handleDelTotpPaste}>
+              {delTotpDigits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={el => { delTotpRefs.current[i] = el }}
+                  type="text" inputMode="numeric" maxLength={1} value={d}
+                  onChange={e => handleDelTotpDigit(i, e.target.value)}
+                  onKeyDown={e => handleDelTotpKey(i, e)}
+                  disabled={delLoading}
+                  style={{
+                    width: 40, height: 48, textAlign: 'center', fontSize: '18px', fontWeight: 700,
+                    border: '1px solid #FECACA', borderBottom: `2px solid ${d ? '#DC2626' : '#E5E7EB'}`,
+                    outline: 'none', color: '#1A2332', transition: 'border-color 0.15s',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderBottomColor = '#DC2626' }}
+                  onBlur={e => { if (!d) e.currentTarget.style.borderBottomColor = '#E5E7EB' }}
+                />
+              ))}
+            </div>
+            {delLoading && <p style={{ fontSize: 12, color: '#6C7F94' }}>Eliminazione in corso...</p>}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
+              <button onClick={() => { setDelStep('password'); setDelPassword(''); setDelError('') }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: BRAND, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                ← Indietro
+              </button>
+              <button onClick={() => setDeleteId(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6C7F94', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Annulla
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
