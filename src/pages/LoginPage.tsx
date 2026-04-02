@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Eye, EyeOff, ArrowRight, ShieldAlert } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { safeErrorMessage } from '../lib/errors'
+import { isLocked, recordFailedAttempt, resetAttempts, formatLockoutTime, LOGIN_LIMITER } from '../lib/rateLimiter'
 import { SplineScene } from '../components/SplineScene'
 import logoSrc from '../assets/logo-agentics.svg'
 
@@ -13,18 +14,49 @@ export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading]           = useState(false)
   const [loginError, setLoginError]     = useState<string | null>(null)
+  const [lockRemaining, setLockRemaining] = useState(0)
+  const [attemptsLeft, setAttemptsLeft]   = useState(LOGIN_LIMITER.maxAttempts)
+  const lockTimer = useRef<ReturnType<typeof setInterval>>(undefined)
+
+  const checkLock = useCallback(() => {
+    const status = isLocked(LOGIN_LIMITER)
+    if (status.locked) {
+      setLockRemaining(status.remainingMs)
+      setAttemptsLeft(0)
+    } else {
+      setLockRemaining(0)
+      setAttemptsLeft(LOGIN_LIMITER.maxAttempts - status.attempts)
+    }
+  }, [])
+
+  useEffect(() => {
+    checkLock()
+    lockTimer.current = setInterval(checkLock, 1000)
+    return () => clearInterval(lockTimer.current)
+  }, [checkLock])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmedEmail = email.trim().toLowerCase()
     if (!trimmedEmail || !password) return
+    if (lockRemaining > 0) return
+
     setLoading(true)
     setLoginError(null)
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password })
       if (error) throw error
+      resetAttempts(LOGIN_LIMITER.key)
     } catch (err: unknown) {
-      setLoginError(safeErrorMessage(err, 'Credenziali non valide.'))
+      const result = recordFailedAttempt(LOGIN_LIMITER)
+      if (result.locked) {
+        setLockRemaining(result.remainingMs)
+        setAttemptsLeft(0)
+        setLoginError(null)
+      } else {
+        setAttemptsLeft(LOGIN_LIMITER.maxAttempts - result.attempts)
+        setLoginError(safeErrorMessage(err, 'Credenziali non valide.'))
+      }
     } finally {
       setLoading(false)
     }
@@ -85,9 +117,28 @@ export const LoginPage = () => {
             </p>
           </div>
 
-          {loginError && (
+          {lockRemaining > 0 && (
             <div
-              className="flex gap-2 mb-6"
+              className="mb-6"
+              style={{
+                borderLeft: '3px solid #DC2626',
+                backgroundColor: '#FEF2F2',
+                padding: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <ShieldAlert style={{ width: 16, height: 16, color: '#DC2626', flexShrink: 0 }} />
+                <p className="text-sm font-semibold" style={{ color: '#991B1B' }}>Account temporaneamente bloccato</p>
+              </div>
+              <p className="text-xs" style={{ color: '#991B1B' }}>
+                Troppi tentativi falliti. Riprova tra <strong>{formatLockoutTime(lockRemaining)}</strong>.
+              </p>
+            </div>
+          )}
+
+          {!lockRemaining && loginError && (
+            <div
+              className="mb-6"
               style={{
                 borderLeft: '3px solid #D0021B',
                 backgroundColor: '#FEF2F2',
@@ -95,6 +146,13 @@ export const LoginPage = () => {
               }}
             >
               <p className="text-sm" style={{ color: '#991B1B' }}>{loginError}</p>
+              {attemptsLeft > 0 && attemptsLeft < LOGIN_LIMITER.maxAttempts && (
+                <p className="text-xs mt-1" style={{ color: '#B91C1C' }}>
+                  {attemptsLeft === 1
+                    ? 'Ultimo tentativo prima del blocco temporaneo.'
+                    : `${attemptsLeft} tentativi rimasti prima del blocco.`}
+                </p>
+              )}
             </div>
           )}
 
@@ -180,27 +238,27 @@ export const LoginPage = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || lockRemaining > 0}
               className="w-full flex items-center justify-center gap-2 mt-2 text-sm font-semibold transition-opacity duration-200"
               style={{
-                backgroundColor: BRAND,
+                backgroundColor: lockRemaining > 0 ? '#9CA3AF' : BRAND,
                 color: '#ffffff',
                 padding: '12px 16px',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 opacity: loading ? 0.5 : 1,
-                cursor: loading ? 'not-allowed' : 'pointer',
+                cursor: (loading || lockRemaining > 0) ? 'not-allowed' : 'pointer',
                 border: 'none'
               }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = '0.85' }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.opacity = '1' }}
+              onMouseEnter={e => { if (!loading && !lockRemaining) e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { if (!loading && !lockRemaining) e.currentTarget.style.opacity = '1' }}
             >
-              {loading ? 'Attendere...' : (
-                <>
-                  Accedi
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
+              {lockRemaining > 0
+                ? `Bloccato — ${formatLockoutTime(lockRemaining)}`
+                : loading
+                  ? 'Attendere...'
+                  : <>Accedi <ArrowRight className="w-4 h-4" /></>
+              }
             </button>
           </form>
 

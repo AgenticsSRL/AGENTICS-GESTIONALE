@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { ShieldAlert } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { isLocked, recordFailedAttempt, resetAttempts, formatLockoutTime, TOTP_LIMITER } from '../lib/rateLimiter'
 import logoSrc from '../assets/logo-agentics.svg'
 
 const BRAND = '#005DEF'
@@ -9,13 +11,34 @@ export const TotpVerifyPage = () => {
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lockRemaining, setLockRemaining] = useState(0)
+  const [attemptsLeft, setAttemptsLeft] = useState(TOTP_LIMITER.maxAttempts)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const lockTimer = useRef<ReturnType<typeof setInterval>>(undefined)
 
-  useEffect(() => {
-    inputRefs.current[0]?.focus()
+  const checkLock = useCallback(() => {
+    const status = isLocked(TOTP_LIMITER)
+    if (status.locked) {
+      setLockRemaining(status.remainingMs)
+      setAttemptsLeft(0)
+    } else {
+      setLockRemaining(0)
+      setAttemptsLeft(TOTP_LIMITER.maxAttempts - status.attempts)
+    }
   }, [])
 
+  useEffect(() => {
+    checkLock()
+    lockTimer.current = setInterval(checkLock, 1000)
+    return () => clearInterval(lockTimer.current)
+  }, [checkLock])
+
+  useEffect(() => {
+    if (!lockRemaining) inputRefs.current[0]?.focus()
+  }, [lockRemaining])
+
   const verify = async (code: string) => {
+    if (lockRemaining > 0) return
     setLoading(true)
     setError(null)
     try {
@@ -32,9 +55,18 @@ export const TotpVerifyPage = () => {
         code,
       })
       if (verifyErr) throw verifyErr
+      resetAttempts(TOTP_LIMITER.key)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Codice non valido.'
-      setError(msg)
+      const result = recordFailedAttempt(TOTP_LIMITER)
+      if (result.locked) {
+        setLockRemaining(result.remainingMs)
+        setAttemptsLeft(0)
+        setError(null)
+      } else {
+        setAttemptsLeft(TOTP_LIMITER.maxAttempts - result.attempts)
+        const msg = err instanceof Error ? err.message : 'Codice non valido.'
+        setError(msg)
+      }
       setDigits(Array(CODE_LENGTH).fill(''))
       inputRefs.current[0]?.focus()
     } finally {
@@ -97,12 +129,38 @@ export const TotpVerifyPage = () => {
           </p>
         </div>
 
-        {error && (
+        {lockRemaining > 0 && (
+          <div
+            className="mb-6"
+            style={{
+              borderLeft: '3px solid #DC2626',
+              backgroundColor: '#FEF2F2',
+              padding: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <ShieldAlert style={{ width: 16, height: 16, color: '#DC2626', flexShrink: 0 }} />
+              <p className="text-sm font-semibold" style={{ color: '#991B1B' }}>Verifica temporaneamente bloccata</p>
+            </div>
+            <p className="text-xs" style={{ color: '#991B1B' }}>
+              Troppi tentativi falliti. Riprova tra <strong>{formatLockoutTime(lockRemaining)}</strong>.
+            </p>
+          </div>
+        )}
+
+        {!lockRemaining && error && (
           <div
             className="mb-6"
             style={{ borderLeft: '3px solid #D0021B', backgroundColor: '#FEF2F2', padding: '12px 16px' }}
           >
             <p className="text-sm" style={{ color: '#991B1B' }}>{error}</p>
+            {attemptsLeft > 0 && attemptsLeft < TOTP_LIMITER.maxAttempts && (
+              <p className="text-xs mt-1" style={{ color: '#B91C1C' }}>
+                {attemptsLeft === 1
+                  ? 'Ultimo tentativo prima del blocco temporaneo.'
+                  : `${attemptsLeft} tentativi rimasti.`}
+              </p>
+            )}
           </div>
         )}
 
@@ -117,13 +175,14 @@ export const TotpVerifyPage = () => {
               value={d}
               onChange={e => handleChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(i, e)}
-              disabled={loading}
+              disabled={loading || lockRemaining > 0}
               style={{
                 width: 48, height: 56, textAlign: 'center',
                 fontSize: '22px', fontWeight: 700,
                 border: '1px solid #E5E7EB', borderBottom: `2px solid ${d ? BRAND : '#E5E7EB'}`,
-                outline: 'none', color: '#1A2332',
+                outline: 'none', color: lockRemaining > 0 ? '#9CA3AF' : '#1A2332',
                 transition: 'border-color 0.15s',
+                backgroundColor: lockRemaining > 0 ? '#F9FAFB' : 'transparent',
               }}
               onFocus={e => { e.currentTarget.style.borderBottomColor = BRAND }}
               onBlur={e => { if (!d) e.currentTarget.style.borderBottomColor = '#E5E7EB' }}

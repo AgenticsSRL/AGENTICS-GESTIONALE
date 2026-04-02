@@ -1,20 +1,14 @@
-import { Component, type ReactNode } from 'react'
+import { Component, memo, type ReactNode } from 'react'
 import Spline from '@splinetool/react-spline'
 
 class SplineErrorBoundary extends Component<
   { children: ReactNode; className?: string },
-  { hasError: boolean; retryKey: number }
+  { hasError: boolean }
 > {
-  state = { hasError: false, retryKey: 0 }
+  state = { hasError: false }
 
   static getDerivedStateFromError() {
     return { hasError: true }
-  }
-
-  componentDidCatch() {
-    setTimeout(() => {
-      this.setState(s => ({ hasError: false, retryKey: s.retryKey + 1 }))
-    }, 3000)
   }
 
   render() {
@@ -28,10 +22,14 @@ interface SplineSceneProps {
   className?: string
 }
 
+const StableSpline = memo(({ scene, className }: SplineSceneProps) => (
+  <Spline scene={scene} className={className} />
+))
+
 export function SplineScene({ scene, className = '' }: SplineSceneProps) {
   return (
     <SplineErrorBoundary key={`spline-${scene}`} className={className}>
-      <Spline scene={scene} className={className} />
+      <StableSpline scene={scene} className={className} />
     </SplineErrorBoundary>
   )
 }
