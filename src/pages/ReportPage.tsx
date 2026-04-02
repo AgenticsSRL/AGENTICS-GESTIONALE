@@ -81,7 +81,7 @@ export const ReportPage = () => {
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
               <XAxis type="number" tick={{ fontSize: 12 }} />
               <YAxis type="category" dataKey="nome" tick={{ fontSize: 12 }} width={110} />
-              <Tooltip formatter={(v: number) => [`${v}h`, 'Ore']} />
+              <Tooltip formatter={(v) => [`${v}h`, 'Ore']} />
               <Bar dataKey="ore" fill={BRAND} radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -95,10 +95,10 @@ export const ReportPage = () => {
             <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1A2332', marginBottom: 20 }}>Spese per categoria</div>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={speseCategoria} dataKey="totale" nameKey="categoria" cx="50%" cy="50%" outerRadius={100} label={({ categoria, percent }) => `${categoria} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                <Pie data={speseCategoria} dataKey="totale" nameKey="categoria" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
                   {speseCategoria.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v: number) => [fmtEur(v), 'Totale']} />
+                <Tooltip formatter={(v) => [fmtEur(v as number), 'Totale']} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -114,7 +114,7 @@ export const ReportPage = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                 <XAxis dataKey="nome" tick={{ fontSize: 11 }} interval={0} angle={-25} textAnchor="end" height={60} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => [fmtEur(v), 'Totale']} />
+                <Tooltip formatter={(v) => [fmtEur(v as number), 'Totale']} />
                 <Bar dataKey="totale" fill="#C2410C" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

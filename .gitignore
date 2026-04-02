@@ -33,3 +33,4 @@ dist-ssr
 
 # Cursor MCP config (contains auth tokens)
 .cursor/mcp.json
+.vercel

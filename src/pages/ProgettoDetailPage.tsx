@@ -5,7 +5,7 @@ import {
   CheckSquare, ChevronDown, ChevronRight, Send, X, Eye, Users,
 } from 'lucide-react'
 import { supabase, verifyPassword } from '../lib/supabase'
-import { taskSchema, progettoSchema, progettoNotaSchema, progettoContrattoSchema, progettoCredenzialeSchema, spesaSchema, validate, type ValidationErrors } from '../lib/validation'
+import { taskSchema, progettoSchema, progettoNotaSchema, progettoCredenzialeSchema, spesaSchema, validate, type ValidationErrors } from '../lib/validation'
 import { safeErrorMessage } from '../lib/errors'
 import type {
   Progetto, Cliente, Task, StatoProgetto, StatoTask, PrioritaTask, CategoriaTask,

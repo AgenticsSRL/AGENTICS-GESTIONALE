@@ -24,7 +24,7 @@ export const TimeTrackingPage = () => {
   const [form, setForm]           = useState<Form>({ ...empty })
   const [saving, setSaving]       = useState(false)
   const [deleteId, setDeleteId]   = useState<string | null>(null)
-  const [errors, setErrors]       = useState<ValidationErrors>({})
+  const [_errors, setErrors]      = useState<ValidationErrors>({})
 
   const load = async () => {
     const [{ data, error }, { data: proj }, { data: tsk }] = await Promise.all([

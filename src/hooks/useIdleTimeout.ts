@@ -5,7 +5,7 @@ const IDLE_LIMIT_MS = 30 * 60 * 1000 // 30 minutes
 const EVENTS: (keyof DocumentEventMap)[] = ['mousedown', 'keydown', 'scroll', 'touchstart']
 
 export function useIdleTimeout() {
-  const timer = useRef<ReturnType<typeof setTimeout>>()
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const resetTimer = useCallback(() => {
     clearTimeout(timer.current)

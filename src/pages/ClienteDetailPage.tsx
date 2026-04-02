@@ -16,11 +16,12 @@ import { FormField, Input, TextArea } from '../components/ui/FormField'
 
 const BRAND = '#005DEF'
 
-const statoBadge: Record<StatoProgetto, { label: string; color: 'green' | 'blue' | 'yellow' | 'gray' }> = {
-  attivo:     { label: 'Attivo',     color: 'green' },
-  completato: { label: 'Completato', color: 'blue' },
-  sospeso:    { label: 'Sospeso',    color: 'yellow' },
-  archiviato: { label: 'Archiviato', color: 'gray' },
+const statoBadge: Record<StatoProgetto, { label: string; color: 'green' | 'blue' | 'yellow' | 'gray' | 'orange' }> = {
+  cliente_demo:   { label: 'Cliente Demo',   color: 'yellow' },
+  demo_accettata: { label: 'Demo Accettata', color: 'orange' },
+  firmato:        { label: 'Firmato',        color: 'green' },
+  completato:     { label: 'Completato',     color: 'blue' },
+  archiviato:     { label: 'Archiviato',     color: 'gray' },
 }
 
 const abboStatoBadge: Record<StatoAbbonamento, { label: string; color: 'green' | 'yellow' | 'gray' | 'blue' }> = {

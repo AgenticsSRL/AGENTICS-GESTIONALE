@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import type { Session, AuthenticatorAssuranceLevels } from '@supabase/supabase-js'
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { LoginPage } from './pages/LoginPage'
 import { TotpEnrollPage } from './pages/TotpEnrollPage'
@@ -45,7 +45,7 @@ function App() {
       return
     }
 
-    const { currentLevel, nextLevel } = data as AuthenticatorAssuranceLevels
+    const { currentLevel, nextLevel } = data
 
     if (nextLevel === 'aal2' && currentLevel !== 'aal2') {
       setAuthState('needs-mfa-verify')

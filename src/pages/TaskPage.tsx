@@ -55,7 +55,7 @@ export const TaskPage = () => {
   const openNew = () => { setEditing(null); setForm({ ...empty }); setErrors({}); setModal(true) }
   const openEdit = (t: Task) => {
     setEditing(t)
-    setForm({ progetto_id: t.progetto_id, titolo: t.titolo, descrizione: t.descrizione, stato: t.stato, priorita: t.priorita, scadenza: t.scadenza })
+    setForm({ progetto_id: t.progetto_id, titolo: t.titolo, descrizione: t.descrizione, stato: t.stato, priorita: t.priorita, scadenza: t.scadenza, categoria: t.categoria, assegnatario: t.assegnatario, dipendenza_id: t.dipendenza_id, checklist: t.checklist ?? [], commenti: t.commenti ?? [] })
     setErrors({}); setModal(true)
   }
 

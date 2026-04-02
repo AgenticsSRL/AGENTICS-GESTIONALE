@@ -1,13 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Calendar, Clock, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { safeErrorMessage } from '../lib/errors'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
-import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 
-const BRAND = '#005DEF'
 const AUTHORIZED_EMAIL = 'lorenzo@agentics.eu.com'
 
 /* ─── Types ─── */
@@ -91,7 +89,7 @@ const emptyForm = (date?: string) => ({
   tipo: 'appuntamento' as TipoEvento,
   luogo: '',
   partecipanti: '',
-  promemoria_minuti: 15,
+  promemoria_minuti: 15 as number | null,
   colore: COLORI[0],
 })
 
