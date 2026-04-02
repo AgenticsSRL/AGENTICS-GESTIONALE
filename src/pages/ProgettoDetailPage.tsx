@@ -2218,19 +2218,28 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
 
   const saveCred = async (e: React.FormEvent) => {
     e.preventDefault()
-    const result = validate(progettoCredenzialeSchema, form)
+    const dataToValidate = {
+      ...form,
+      api_key: form.tipo === 'api_key' ? form.api_key : '',
+    }
+    const result = validate(progettoCredenzialeSchema, dataToValidate)
     if (!result.success) { setErrors(result.errors); return }
     setErrors({}); setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSaving(false); return }
-    const payload = { ...result.data, progetto_id: progettoId, user_id: user.id }
-    const { error } = editing
-      ? await supabase.from('progetto_credenziali').update({ ...result.data, updated_at: new Date().toISOString() }).eq('id', editing.id)
-      : await supabase.from('progetto_credenziali').insert(payload)
-    if (error) { setErrors({ _form: safeErrorMessage(error) }); setSaving(false); return }
-    setSaving(false); setModal(false)
-    await logActivity(editing ? 'Credenziale aggiornata' : 'Credenziale aggiunta', `"${form.nome}" (${tipoCredenzialeLabel[form.tipo]})`)
-    loadCreds()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setErrors({ _form: 'Sessione scaduta. Ricarica la pagina.' }); setSaving(false); return }
+      const payload = { ...result.data, progetto_id: progettoId, user_id: user.id }
+      const { error } = editing
+        ? await supabase.from('progetto_credenziali').update({ ...result.data, updated_at: new Date().toISOString() }).eq('id', editing.id)
+        : await supabase.from('progetto_credenziali').insert(payload)
+      if (error) { setErrors({ _form: safeErrorMessage(error) }); setSaving(false); return }
+      setSaving(false); setModal(false)
+      await logActivity(editing ? 'Credenziale aggiornata' : 'Credenziale aggiunta', `"${form.nome}" (${tipoCredenzialeLabel[form.tipo]})`)
+      loadCreds()
+    } catch (err: unknown) {
+      setErrors({ _form: safeErrorMessage(err, 'Errore durante il salvataggio.') })
+      setSaving(false)
+    }
   }
 
   const removeCred = async () => {
@@ -2467,13 +2476,17 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
       {/* Create/edit modal */}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica credenziale' : 'Nuova credenziale'} width="560px">
         <form onSubmit={saveCred} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {errors._form && <p style={{ fontSize: 12, color: '#DC2626' }}>{errors._form}</p>}
+          {errors._form && (
+            <div style={{ borderLeft: '3px solid #DC2626', backgroundColor: '#FEF2F2', padding: '10px 14px' }}>
+              <p style={{ fontSize: 12, color: '#991B1B' }}>{errors._form}</p>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
             <FormField label="Nome" required error={errors.nome}>
               <Input value={form.nome} onChange={cf('nome')} placeholder="Es. Google Cloud Console" maxLength={200} />
             </FormField>
             <FormField label="Tipo" error={errors.tipo}>
-              <Select value={form.tipo} onChange={cf('tipo')}>
+              <Select value={form.tipo} onChange={e => { cf('tipo')(e); if (e.target.value !== 'api_key') setForm(p => ({ ...p, api_key: '' })) }}>
                 {Object.entries(tipoCredenzialeLabel).map(([val, lab]) => (
                   <option key={val} value={val}>{lab}</option>
                 ))}
@@ -2488,12 +2501,14 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
               <Input value={form.username} onChange={cf('username')} placeholder="utente@dominio.com" />
             </FormField>
             <FormField label="Password" error={errors.password_encrypted}>
-              <Input type="password" value={form.password_encrypted} onChange={cf('password_encrypted')} placeholder="••••••••" />
+              <Input value={form.password_encrypted} onChange={cf('password_encrypted')} placeholder="Inserisci la password" />
             </FormField>
           </div>
-          <FormField label="API Key / Token" error={errors.api_key}>
-            <Input value={form.api_key} onChange={cf('api_key')} placeholder="sk-..." />
-          </FormField>
+          {form.tipo === 'api_key' && (
+            <FormField label="API Key / Token" error={errors.api_key}>
+              <Input value={form.api_key} onChange={cf('api_key')} placeholder="sk-..." />
+            </FormField>
+          )}
           <FormField label="Note" error={errors.note}>
             <TextArea value={form.note} onChange={cf('note')} placeholder="Note aggiuntive..." maxLength={2000} />
           </FormField>
