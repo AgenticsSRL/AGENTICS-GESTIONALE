@@ -2486,17 +2486,6 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
 
   return (
     <div>
-      {/* Security notice */}
-      <div style={{ padding: '14px 16px', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <Shield style={{ width: 14, height: 14, color: '#DC2626', flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sezione protetta</span>
-        </div>
-        <div style={{ fontSize: 12, color: '#991B1B', lineHeight: 1.5, paddingLeft: 24 }}>
-          Accesso limitato a <strong>{AUTHORIZED_EMAIL}</strong>. I dati sono protetti da Row Level Security e l'accesso richiede verifica password + codice 2FA.
-        </div>
-      </div>
-
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         <Button size="sm" onClick={openNew}><Plus style={{ width: 12, height: 12 }} /> Nuova credenziale</Button>
       </div>
