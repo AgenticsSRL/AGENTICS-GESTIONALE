@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ArrowLeft, Plus, Pencil, Trash2, Upload, Download,
   FileText, Clock, Shield, StickyNote, Briefcase, Lock, EyeOff, Copy, KeyRound,
@@ -2105,13 +2105,19 @@ function setSessionValid() {
   sessionStorage.setItem(CRED_SESSION_KEY, JSON.stringify({ ts: Date.now() }))
 }
 
+type AuthStep = 'password' | 'totp' | 'done'
+const TOTP_CODE_LENGTH = 6
+
 const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logActivity: (a: string, d?: string) => Promise<void> }) => {
   const [authorized, setAuthorized] = useState(() => isSessionValid())
   const [authChecking, setAuthChecking] = useState(true)
+  const [authStep, setAuthStep] = useState<AuthStep>('password')
   const [authPassword, setAuthPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [totpDigits, setTotpDigits] = useState<string[]>(Array(TOTP_CODE_LENGTH).fill(''))
+  const totpRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const [creds, setCreds] = useState<ProgettoCredenziale[]>([])
   const [loading, setLoading] = useState(true)
@@ -2135,12 +2141,13 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
       }
       if (isSessionValid()) {
         setAuthorized(true)
+        setAuthStep('done')
       }
       setAuthChecking(false)
     })()
   }, [])
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handlePasswordStep = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true); setAuthError('')
     const { ok, error } = await verifyPassword(userEmail, authPassword)
@@ -2149,9 +2156,60 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
       setAuthLoading(false)
       return
     }
-    setSessionValid()
-    setAuthorized(true)
     setAuthLoading(false)
+    setAuthError('')
+    setAuthStep('totp')
+    setTotpDigits(Array(TOTP_CODE_LENGTH).fill(''))
+    setTimeout(() => totpRefs.current[0]?.focus(), 50)
+  }
+
+  const handleTotpVerify = async (code: string) => {
+    setAuthLoading(true); setAuthError('')
+    try {
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const totp = factors?.totp?.[0]
+      if (!totp) { setAuthError('Nessun fattore TOTP trovato.'); setAuthLoading(false); return }
+
+      const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId: totp.id })
+      if (chErr) throw chErr
+
+      const { error: vErr } = await supabase.auth.mfa.verify({ factorId: totp.id, challengeId: challenge.id, code })
+      if (vErr) throw vErr
+
+      setSessionValid()
+      setAuthorized(true)
+      setAuthStep('done')
+    } catch (err: unknown) {
+      setAuthError(err instanceof Error ? err.message : 'Codice non valido. Riprova.')
+      setTotpDigits(Array(TOTP_CODE_LENGTH).fill(''))
+      totpRefs.current[0]?.focus()
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleTotpDigitChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return
+    const next = [...totpDigits]
+    next[index] = value.slice(-1)
+    setTotpDigits(next)
+    if (value && index < TOTP_CODE_LENGTH - 1) totpRefs.current[index + 1]?.focus()
+    if (next.every(d => d !== '')) handleTotpVerify(next.join(''))
+  }
+
+  const handleTotpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !totpDigits[index] && index > 0) totpRefs.current[index - 1]?.focus()
+  }
+
+  const handleTotpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, TOTP_CODE_LENGTH)
+    if (!text) return
+    const next = Array(TOTP_CODE_LENGTH).fill('')
+    text.split('').forEach((ch, i) => { next[i] = ch })
+    setTotpDigits(next)
+    totpRefs.current[Math.min(text.length, TOTP_CODE_LENGTH - 1)]?.focus()
+    if (text.length === TOTP_CODE_LENGTH) handleTotpVerify(text)
   }
 
   const loadCreds = useCallback(async () => {
@@ -2258,26 +2316,97 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
           <Shield style={{ width: 28, height: 28, color: '#DC2626' }} />
         </div>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#1A2332', marginBottom: 6 }}>Verifica identità richiesta</div>
-        <div style={{ fontSize: 13, color: '#6C7F94', marginBottom: 28 }}>
-          Per accedere alle credenziali del progetto, inserisci la tua password per confermare la tua identità.
+        <div style={{ fontSize: 13, color: '#6C7F94', marginBottom: 8 }}>
+          L'accesso alle credenziali richiede una doppia verifica: password + codice 2FA.
         </div>
-        <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'left' }}>
-          <FormField label="Email" hint="Accesso limitato">
-            <Input value={userEmail} disabled style={{ color: '#6C7F94', backgroundColor: '#F9FAFB' }} />
-          </FormField>
-          <FormField label="Password" required error={authError || undefined}>
-            <Input
-              type="password"
-              value={authPassword}
-              onChange={e => setAuthPassword(e.target.value)}
-              placeholder="Inserisci la tua password"
-              autoFocus
-            />
-          </FormField>
-          <Button type="submit" disabled={authLoading || !authPassword} style={{ width: '100%', justifyContent: 'center' }}>
-            {authLoading ? 'Verifica...' : 'Verifica e accedi'}
-          </Button>
-        </form>
+
+        {/* Step indicator */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 28 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px',
+            backgroundColor: authStep === 'password' ? BRAND : '#15803D',
+            color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}>
+            {authStep === 'password' ? '1. Password' : '✓ Password'}
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px',
+            backgroundColor: authStep === 'totp' ? BRAND : '#E5E7EB',
+            color: authStep === 'totp' ? '#fff' : '#9CA3AF',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>
+            2. Codice 2FA
+          </div>
+        </div>
+
+        {authError && (
+          <div style={{ borderLeft: '3px solid #DC2626', backgroundColor: '#FEF2F2', padding: '10px 14px', marginBottom: 16, textAlign: 'left' }}>
+            <p style={{ fontSize: 12, color: '#991B1B' }}>{authError}</p>
+          </div>
+        )}
+
+        {/* Step 1: Password */}
+        {authStep === 'password' && (
+          <form onSubmit={handlePasswordStep} style={{ display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'left' }}>
+            <FormField label="Email" hint="Accesso limitato">
+              <Input value={userEmail} disabled style={{ color: '#6C7F94', backgroundColor: '#F9FAFB' }} />
+            </FormField>
+            <FormField label="Password" required>
+              <Input
+                type="password"
+                value={authPassword}
+                onChange={e => setAuthPassword(e.target.value)}
+                placeholder="Inserisci la tua password"
+                autoFocus
+              />
+            </FormField>
+            <Button type="submit" disabled={authLoading || !authPassword} style={{ width: '100%', justifyContent: 'center' }}>
+              {authLoading ? 'Verifica...' : 'Continua →'}
+            </Button>
+          </form>
+        )}
+
+        {/* Step 2: TOTP 2FA */}
+        {authStep === 'totp' && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: '#6C7F94', marginBottom: 20 }}>
+              Inserisci il codice a 6 cifre dalla tua app Authenticator.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 20 }} onPaste={handleTotpPaste}>
+              {totpDigits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={el => { totpRefs.current[i] = el }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={d}
+                  onChange={e => handleTotpDigitChange(i, e.target.value)}
+                  onKeyDown={e => handleTotpKeyDown(i, e)}
+                  disabled={authLoading}
+                  style={{
+                    width: 44, height: 52, textAlign: 'center',
+                    fontSize: '20px', fontWeight: 700,
+                    border: '1px solid #E5E7EB',
+                    borderBottom: `2px solid ${d ? BRAND : '#E5E7EB'}`,
+                    outline: 'none', color: '#1A2332',
+                    transition: 'border-color 0.15s',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderBottomColor = BRAND }}
+                  onBlur={e => { if (!d) e.currentTarget.style.borderBottomColor = '#E5E7EB' }}
+                />
+              ))}
+            </div>
+            {authLoading && <div style={{ fontSize: 12, color: '#6C7F94' }}>Verifica in corso...</div>}
+            <button
+              onClick={() => { setAuthStep('password'); setAuthError(''); setAuthPassword('') }}
+              style={{ marginTop: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: BRAND, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+            >
+              ← Torna alla password
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -2308,11 +2437,14 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
   return (
     <div>
       {/* Security notice */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', marginBottom: 20 }}>
-        <Lock style={{ width: 14, height: 14, color: '#DC2626', flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: '#991B1B' }}>
-          Sezione protetta — accesso limitato a <strong>{AUTHORIZED_EMAIL}</strong>. I dati sono protetti da Row Level Security.
-        </span>
+      <div style={{ padding: '14px 16px', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <Shield style={{ width: 14, height: 14, color: '#DC2626', flexShrink: 0 }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sezione protetta</span>
+        </div>
+        <div style={{ fontSize: 12, color: '#991B1B', lineHeight: 1.5, paddingLeft: 24 }}>
+          Accesso limitato a <strong>{AUTHORIZED_EMAIL}</strong>. I dati sono protetti da Row Level Security e l'accesso richiede verifica password + codice 2FA.
+        </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
