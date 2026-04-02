@@ -4,7 +4,7 @@ import {
   FileText, Clock, Shield, StickyNote, Briefcase, Lock, EyeOff, Copy, KeyRound,
   CheckSquare, ChevronDown, ChevronRight, Send, X, Eye, Users,
 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, verifyPassword } from '../lib/supabase'
 import { taskSchema, progettoSchema, progettoNotaSchema, progettoContrattoSchema, progettoCredenzialeSchema, spesaSchema, validate, type ValidationErrors } from '../lib/validation'
 import { safeErrorMessage } from '../lib/errors'
 import type {
@@ -2143,12 +2143,9 @@ const CredenzialiTab = ({ progettoId, logActivity }: { progettoId: string; logAc
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true); setAuthError('')
-    const { error } = await supabase.auth.signInWithPassword({
-      email: userEmail,
-      password: authPassword,
-    })
-    if (error) {
-      setAuthError('Password non valida. Riprova.')
+    const { ok, error } = await verifyPassword(userEmail, authPassword)
+    if (!ok) {
+      setAuthError(error ?? 'Password non valida. Riprova.')
       setAuthLoading(false)
       return
     }

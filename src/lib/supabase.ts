@@ -19,3 +19,17 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     },
   },
 })
+
+export async function verifyPassword(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: supabaseKey },
+      body: JSON.stringify({ email, password }),
+    })
+    if (!res.ok) return { ok: false, error: 'Password non valida.' }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'Errore di rete. Riprova.' }
+  }
+}
