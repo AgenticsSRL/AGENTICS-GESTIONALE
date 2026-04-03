@@ -9,13 +9,14 @@
     <meta http-equiv="Content-Security-Policy"
       content="
         default-src 'self';
-        script-src  'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval' blob: https://unpkg.com;
+        script-src  'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval' blob: https://unpkg.com https://challenges.cloudflare.com;
         style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
         img-src     'self' data: blob: https://*.supabase.co;
         font-src    'self' data: https://fonts.gstatic.com;
+        media-src   'self' data: blob:;
         worker-src  'self' blob:;
-        connect-src 'self' https://*.supabase.co wss://*.supabase.co https://prod.spline.design https://unpkg.com https://*.spline.design;
-        frame-src   'none';
+        connect-src 'self' https://*.supabase.co wss://*.supabase.co https://prod.spline.design https://unpkg.com https://*.spline.design https://challenges.cloudflare.com;
+        frame-src   https://challenges.cloudflare.com;
         object-src  'none';
         base-uri    'self';
         form-action 'self';
