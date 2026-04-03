@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Eye, EyeOff, ArrowRight, ShieldAlert } from 'lucide-react'
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 import { supabase } from '../lib/supabase'
 import { safeErrorMessage } from '../lib/errors'
 import { isLocked, recordFailedAttempt, resetAttempts, formatLockoutTime, LOGIN_LIMITER } from '../lib/rateLimiter'
@@ -7,6 +8,7 @@ import { SplineScene } from '../components/SplineScene'
 import logoSrc from '../assets/logo-agentics.svg'
 
 const BRAND = '#005DEF'
+const CF_SITE_KEY = '0x4AAAAAAC0OGk7RAkvlk_kn'
 
 export const LoginPage = () => {
   const [email, setEmail]               = useState('')
@@ -17,6 +19,8 @@ export const LoginPage = () => {
   const [lockRemaining, setLockRemaining] = useState(0)
   const [attemptsLeft, setAttemptsLeft]   = useState(LOGIN_LIMITER.maxAttempts)
   const lockTimer = useRef<ReturnType<typeof setInterval>>(undefined)
+  const [cfToken, setCfToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance>(undefined)
 
   const checkLock = useCallback(() => {
     const status = isLocked(LOGIN_LIMITER)
@@ -41,13 +45,32 @@ export const LoginPage = () => {
     if (!trimmedEmail || !password) return
     if (lockRemaining > 0) return
 
+    if (!cfToken) {
+      setLoginError('Completa la verifica di sicurezza Turnstile.')
+      return
+    }
+
     setLoading(true)
     setLoginError(null)
     try {
+      const verifyRes = await fetch('/api/turnstile-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: cfToken }),
+      })
+      const verifyData = await verifyRes.json()
+      if (!verifyData.success) {
+        turnstileRef.current?.reset()
+        setCfToken(null)
+        throw new Error('Verifica di sicurezza fallita. Riprova.')
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password })
       if (error) throw error
       resetAttempts(LOGIN_LIMITER.key)
     } catch (err: unknown) {
+      turnstileRef.current?.reset()
+      setCfToken(null)
       const result = recordFailedAttempt(LOGIN_LIMITER)
       if (result.locked) {
         setLockRemaining(result.remainingMs)
@@ -236,22 +259,33 @@ export const LoginPage = () => {
               </div>
             </div>
 
+            <div className="flex justify-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={CF_SITE_KEY}
+                onSuccess={setCfToken}
+                onError={() => setCfToken(null)}
+                onExpire={() => setCfToken(null)}
+                options={{ theme: 'light', size: 'normal' }}
+              />
+            </div>
+
             <button
               type="submit"
-              disabled={loading || lockRemaining > 0}
+              disabled={loading || lockRemaining > 0 || !cfToken}
               className="w-full flex items-center justify-center gap-2 mt-2 text-sm font-semibold transition-opacity duration-200"
               style={{
-                backgroundColor: lockRemaining > 0 ? '#9CA3AF' : BRAND,
+                backgroundColor: (lockRemaining > 0 || !cfToken) ? '#9CA3AF' : BRAND,
                 color: '#ffffff',
                 padding: '12px 16px',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 opacity: loading ? 0.5 : 1,
-                cursor: (loading || lockRemaining > 0) ? 'not-allowed' : 'pointer',
+                cursor: (loading || lockRemaining > 0 || !cfToken) ? 'not-allowed' : 'pointer',
                 border: 'none'
               }}
-              onMouseEnter={e => { if (!loading && !lockRemaining) e.currentTarget.style.opacity = '0.85' }}
-              onMouseLeave={e => { if (!loading && !lockRemaining) e.currentTarget.style.opacity = '1' }}
+              onMouseEnter={e => { if (!loading && !lockRemaining && cfToken) e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { if (!loading && !lockRemaining && cfToken) e.currentTarget.style.opacity = '1' }}
             >
               {lockRemaining > 0
                 ? `Bloccato — ${formatLockoutTime(lockRemaining)}`
