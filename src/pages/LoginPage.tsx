@@ -74,7 +74,11 @@ export const LoginPage = () => {
         throw new Error('Verifica di sicurezza fallita. Riprova.')
       }
 
-      const { error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password })
+      const { error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+        options: { captchaToken: cfToken },
+      })
       if (error) throw error
       resetAttempts(LOGIN_LIMITER.key)
     } catch (err: unknown) {
