@@ -20,7 +20,16 @@ export const LoginPage = () => {
   const [attemptsLeft, setAttemptsLeft]   = useState(LOGIN_LIMITER.maxAttempts)
   const lockTimer = useRef<ReturnType<typeof setInterval>>(undefined)
   const [cfToken, setCfToken] = useState<string | null>(null)
+  const [cfStatus, setCfStatus] = useState<'loading' | 'solved' | 'error'>('loading')
   const turnstileRef = useRef<TurnstileInstance>(undefined)
+  const cfTimeout = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    cfTimeout.current = setTimeout(() => {
+      if (cfStatus === 'loading') setCfStatus('error')
+    }, 8000)
+    return () => clearTimeout(cfTimeout.current)
+  }, [cfStatus])
 
   const checkLock = useCallback(() => {
     const status = isLocked(LOGIN_LIMITER)
@@ -259,15 +268,32 @@ export const LoginPage = () => {
               </div>
             </div>
 
-            <div className="flex justify-center">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={CF_SITE_KEY}
-                onSuccess={setCfToken}
-                onError={() => setCfToken(null)}
-                onExpire={() => setCfToken(null)}
-                options={{ theme: 'light', size: 'normal' }}
-              />
+            <div className="flex justify-center" style={{ minHeight: 65 }}>
+              {cfStatus === 'error' ? (
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: 11, color: '#DC2626', marginBottom: 6 }}>Verifica di sicurezza non disponibile.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setCfStatus('loading'); turnstileRef.current?.reset() }}
+                    style={{ fontSize: 11, color: BRAND, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Riprova
+                  </button>
+                </div>
+              ) : cfStatus === 'loading' && !cfToken ? (
+                <p style={{ fontSize: 11, color: '#6C7F94', alignSelf: 'center' }}>Caricamento verifica di sicurezza...</p>
+              ) : null}
+              <div style={{ display: cfStatus === 'error' ? 'none' : 'block' }}>
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={CF_SITE_KEY}
+                  onSuccess={(token) => { setCfToken(token); setCfStatus('solved'); clearTimeout(cfTimeout.current) }}
+                  onError={() => { setCfToken(null); setCfStatus('error') }}
+                  onExpire={() => { setCfToken(null); setCfStatus('loading') }}
+                  onUnsupported={() => setCfStatus('error')}
+                  options={{ theme: 'light', size: 'normal' }}
+                />
+              </div>
             </div>
 
             <button
