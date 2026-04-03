@@ -3,7 +3,7 @@ import { LogOut } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import logoWordmark from '../../assets/logo-agentics-wordmark.svg'
 
-export type Page = 'dashboard' | 'clienti' | 'cliente_detail' | 'progetti' | 'progetto_detail' | 'task' | 'contabilita' | 'sicurezza' | 'calendario' | 'profilo'
+export type Page = 'dashboard' | 'clienti' | 'cliente_detail' | 'progetti' | 'progetto_detail' | 'task' | 'contabilita' | 'sicurezza' | 'security_events' | 'calendario' | 'profilo'
 
 const BRAND = '#005DEF'
 const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
@@ -14,8 +14,9 @@ const navItems: { id: Page; label: string; adminOnly?: boolean }[] = [
   { id: 'progetti',     label: 'Progetti' },
   { id: 'task',         label: 'Task' },
   { id: 'contabilita', label: 'Contabilità' },
-  { id: 'sicurezza',    label: 'Sicurezza' },
-  { id: 'calendario',   label: 'Calendario', adminOnly: true },
+  { id: 'sicurezza',       label: 'Sicurezza' },
+  { id: 'security_events', label: 'Security Events', adminOnly: true },
+  { id: 'calendario',      label: 'Calendario', adminOnly: true },
   { id: 'profilo',      label: 'Area Privata' },
 ]
 

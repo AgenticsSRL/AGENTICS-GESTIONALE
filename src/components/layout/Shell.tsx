@@ -8,6 +8,7 @@ import { ProgettoDetailPage }  from '../../pages/ProgettoDetailPage'
 import { TaskPage }            from '../../pages/TaskPage'
 import { ContabilitaPage }     from '../../pages/ContabilitaPage'
 import { SicurezzaPage }       from '../../pages/SicurezzaPage'
+import { SecurityEventsPage }  from '../../pages/SecurityEventsPage'
 import { CalendarioPage }     from '../../pages/CalendarioPage'
 import { ProfiloPage }         from '../../pages/ProfiloPage'
 import { useIdleTimeout }      from '../../hooks/useIdleTimeout'
@@ -21,6 +22,7 @@ const pageTitle: Record<Page, string> = {
   task:             'Task',
   contabilita:      'Contabilità',
   sicurezza:        'Sicurezza',
+  security_events:  'Security Events',
   calendario:       'Calendario',
   profilo:          'Area Privata',
 }
@@ -55,6 +57,7 @@ export const Shell = () => {
       case 'task':            return <TaskPage />
       case 'contabilita':     return <ContabilitaPage />
       case 'sicurezza':       return <SicurezzaPage />
+      case 'security_events': return <SecurityEventsPage />
       case 'calendario':      return <CalendarioPage />
       case 'profilo':         return <ProfiloPage />
     }
