@@ -62,18 +62,6 @@ export const LoginPage = () => {
     setLoading(true)
     setLoginError(null)
     try {
-      const verifyRes = await fetch('/api/turnstile-verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: cfToken }),
-      })
-      const verifyData = await verifyRes.json()
-      if (!verifyData.success) {
-        turnstileRef.current?.reset()
-        setCfToken(null)
-        throw new Error('Verifica di sicurezza fallita. Riprova.')
-      }
-
       const { error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
