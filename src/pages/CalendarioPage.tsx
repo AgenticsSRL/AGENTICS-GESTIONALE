@@ -1,12 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { safeErrorMessage } from '../lib/errors'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
-
-const AUTHORIZED_EMAIL = 'lorenzo@agentics.eu.com'
 
 /* ─── Types ─── */
 
@@ -96,8 +94,6 @@ const emptyForm = (date?: string) => ({
 /* ─── Component ─── */
 
 export const CalendarioPage = () => {
-  const [authorized, setAuthorized] = useState(false)
-  const [checking, setChecking] = useState(true)
   const [eventi, setEventi] = useState<Evento[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -115,13 +111,6 @@ export const CalendarioPage = () => {
 
   const [detailEvent, setDetailEvent] = useState<Evento | null>(null)
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setAuthorized(user?.email === AUTHORIZED_EMAIL)
-      setChecking(false)
-    })
-  }, [])
-
   const loadEventi = useCallback(async () => {
     const { data } = await supabase
       .from('calendario_eventi')
@@ -131,9 +120,7 @@ export const CalendarioPage = () => {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    if (authorized) loadEventi()
-  }, [authorized, loadEventi])
+  useEffect(() => { loadEventi() }, [loadEventi])
 
   /* Navigation */
   const nav = (dir: -1 | 1) => {
@@ -214,18 +201,6 @@ export const CalendarioPage = () => {
   /* Queries */
   const eventsOnDate = (dateStr: string) => eventi.filter(ev => isSameDay(ev.data_inizio, dateStr))
   const todayStr = fmtDateISO(today)
-
-  if (checking) return <div style={{ color: '#6C7F94', fontSize: 13, padding: 32 }}>Verifica accesso...</div>
-
-  if (!authorized) {
-    return (
-      <div style={{ textAlign: 'center', padding: '80px 24px' }}>
-        <Calendar style={{ width: 40, height: 40, margin: '0 auto 16px', color: '#6C7F94', opacity: 0.4 }} />
-        <p style={{ fontSize: 15, fontWeight: 600, color: '#1A2332', marginBottom: 6 }}>Accesso riservato</p>
-        <p style={{ fontSize: 13, color: '#6C7F94' }}>Questa sezione è riservata all'amministratore.</p>
-      </div>
-    )
-  }
 
   if (loading) return <div style={{ color: '#6C7F94', fontSize: 13, padding: 32 }}>Caricamento...</div>
 
