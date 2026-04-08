@@ -3,7 +3,7 @@ import { LogOut } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import logoWordmark from '../../assets/logo-agentics-wordmark.svg'
 
-export type Page = 'dashboard' | 'clienti' | 'cliente_detail' | 'progetti' | 'progetto_detail' | 'task' | 'contabilita' | 'sicurezza' | 'security_events' | 'calendario' | 'profilo'
+export type Page = 'dashboard' | 'clienti' | 'cliente_detail' | 'progetti' | 'progetto_detail' | 'task' | 'task_detail' | 'contabilita' | 'spunti' | 'sicurezza' | 'security_events' | 'calendario' | 'profilo'
 
 const BRAND = '#005DEF'
 const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
@@ -14,6 +14,7 @@ const navItems: { id: Page; label: string; adminOnly?: boolean }[] = [
   { id: 'progetti',     label: 'Progetti' },
   { id: 'task',         label: 'Task' },
   { id: 'contabilita', label: 'Contabilità' },
+  { id: 'spunti',     label: 'Spunti' },
   { id: 'sicurezza',       label: 'Sicurezza' },
   { id: 'security_events', label: 'Security Events', adminOnly: true },
   { id: 'calendario',      label: 'Calendario', adminOnly: true },
@@ -52,7 +53,7 @@ export const Sidebar = ({ current, onChange }: SidebarProps) => {
     {/* Nav */}
     <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
       {visibleItems.map(({ id, label }) => {
-        const active = current === id || (id === 'clienti' && current === 'cliente_detail') || (id === 'progetti' && current === 'progetto_detail')
+        const active = current === id || (id === 'clienti' && current === 'cliente_detail') || (id === 'progetti' && current === 'progetto_detail') || (id === 'task' && current === 'task_detail')
         return (
           <button
             key={id}

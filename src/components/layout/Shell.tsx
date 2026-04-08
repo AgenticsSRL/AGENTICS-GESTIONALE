@@ -6,7 +6,9 @@ import { ClienteDetailPage }   from '../../pages/ClienteDetailPage'
 import { ProgettiPage }        from '../../pages/ProgettiPage'
 import { ProgettoDetailPage }  from '../../pages/ProgettoDetailPage'
 import { TaskPage }            from '../../pages/TaskPage'
+import { TaskDetailPage }      from '../../pages/TaskDetailPage'
 import { ContabilitaPage }     from '../../pages/ContabilitaPage'
+import { SpuntiPage }          from '../../pages/SpuntiPage'
 import { SicurezzaPage }       from '../../pages/SicurezzaPage'
 import { SecurityEventsPage }  from '../../pages/SecurityEventsPage'
 import { CalendarioPage }     from '../../pages/CalendarioPage'
@@ -20,7 +22,9 @@ const pageTitle: Record<Page, string> = {
   progetti:         'Progetti',
   progetto_detail:  'Dettaglio Progetto',
   task:             'Task',
+  task_detail:      'Dettaglio Task',
   contabilita:      'Contabilità',
+  spunti:           'Spunti',
   sicurezza:        'Sicurezza',
   security_events:  'Security Events',
   calendario:       'Calendario',
@@ -32,6 +36,7 @@ export const Shell = () => {
   const [page, setPage] = useState<Page>('dashboard')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [selectedProgettoId, setSelectedProgettoId] = useState<string | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
   const navigateToCliente = (id: string) => {
     setSelectedClienteId(id)
@@ -41,6 +46,11 @@ export const Shell = () => {
   const navigateToProgetto = (id: string) => {
     setSelectedProgettoId(id)
     setPage('progetto_detail')
+  }
+
+  const navigateToTask = (id: string) => {
+    setSelectedTaskId(id)
+    setPage('task_detail')
   }
 
   const renderPage = () => {
@@ -54,8 +64,12 @@ export const Shell = () => {
       case 'progetto_detail': return selectedProgettoId
         ? <ProgettoDetailPage progettoId={selectedProgettoId} onBack={() => setPage('progetti')} />
         : null
-      case 'task':            return <TaskPage />
+      case 'task':            return <TaskPage onViewTask={navigateToTask} />
+      case 'task_detail':     return selectedTaskId
+        ? <TaskDetailPage taskId={selectedTaskId} onBack={() => setPage('task')} onNavigateToProgetto={navigateToProgetto} />
+        : null
       case 'contabilita':     return <ContabilitaPage />
+      case 'spunti':          return <SpuntiPage />
       case 'sicurezza':       return <SicurezzaPage />
       case 'security_events': return <SecurityEventsPage />
       case 'calendario':      return <CalendarioPage />

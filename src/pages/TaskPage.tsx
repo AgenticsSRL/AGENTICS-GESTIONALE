@@ -28,7 +28,11 @@ type Form = Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'progett
 
 const empty: Form = { progetto_id: null, titolo: '', descrizione: null, stato: 'todo', priorita: 'media', scadenza: null, categoria: null, assegnatario: null, dipendenza_id: null, checklist: [], commenti: [] }
 
-export const TaskPage = () => {
+interface TaskPageProps {
+  onViewTask?: (id: string) => void
+}
+
+export const TaskPage = ({ onViewTask }: TaskPageProps) => {
   const [rows, setRows]           = useState<Task[]>([])
   const [progetti, setProgetti]   = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
   const [loading, setLoading]     = useState(true)
@@ -102,7 +106,13 @@ export const TaskPage = () => {
                 const sb = statoBadge[t.stato]
                 const pb = prioritaBadge[t.priorita]
                 return (
-                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 80px', padding: '14px 20px', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                  <div
+                    key={t.id}
+                    onClick={() => onViewTask?.(t.id)}
+                    style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 80px', padding: '14px 20px', borderBottom: '1px solid #F3F4F6', alignItems: 'center', cursor: onViewTask ? 'pointer' : 'default', transition: 'background-color 0.15s' }}
+                    onMouseEnter={e => { if (onViewTask) e.currentTarget.style.backgroundColor = '#F9FAFB' }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                  >
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{t.titolo}</div>
                       {t.descrizione && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{t.descrizione}</div>}
@@ -111,7 +121,7 @@ export const TaskPage = () => {
                     <Badge label={sb.label} color={sb.color} />
                     <Badge label={pb.label} color={pb.color} />
                     <span style={{ fontSize: 13, color: '#4B5563' }}>{t.scadenza ? new Date(t.scadenza).toLocaleDateString('it-IT') : '—'}</span>
-                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
                       <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
