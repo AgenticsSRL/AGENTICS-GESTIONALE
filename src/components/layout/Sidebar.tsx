@@ -17,7 +17,7 @@ const navItems: { id: Page; label: string; adminOnly?: boolean }[] = [
   { id: 'spunti',     label: 'Spunti' },
   { id: 'sicurezza',       label: 'Sicurezza' },
   { id: 'security_events', label: 'Security Events', adminOnly: true },
-  { id: 'calendario',      label: 'Calendario', adminOnly: true },
+  { id: 'calendario',      label: 'Calendario' },
   { id: 'profilo',      label: 'Area Privata' },
 ]
 
