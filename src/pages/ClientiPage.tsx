@@ -8,6 +8,7 @@ import { Button }     from '../components/ui/Button'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, TextArea } from '../components/ui/FormField'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const empty: Omit<Cliente, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
   nome: '', partita_iva: null, codice_fiscale: null, codice_sdi: null,
@@ -20,6 +21,7 @@ interface ClientiPageProps {
 }
 
 export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
+  const isMobile = useIsMobile()
   const [clienti, setClienti]   = useState<Cliente[]>([])
   const [loading, setLoading]   = useState(true)
   const [modal, setModal]       = useState(false)
@@ -89,7 +91,8 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
         : clienti.length === 0
           ? <EmptyState icon={Users} title="Nessun cliente" description="Aggiungi il primo cliente per iniziare." action={{ label: 'Aggiungi cliente', onClick: openNew }} />
           : (
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 640 }}>
               {/* Intestazione */}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1.5fr 1fr 1fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
                 {['Azienda', 'P.IVA / SDI', 'Email / PEC', 'Telefono', 'Sede', ''].map(h => (
@@ -137,6 +140,7 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )
       }
@@ -152,7 +156,7 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
             <FormField label="Ragione Sociale" required error={errors.nome}>
               <Input value={form.nome} onChange={f('nome')} placeholder="Ragione sociale" maxLength={200} required />
             </FormField>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
               <FormField label="Partita IVA" error={errors.partita_iva}>
                 <Input value={form.partita_iva ?? ''} onChange={f('partita_iva')} placeholder="01234567890" maxLength={20} />
               </FormField>
@@ -160,7 +164,7 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
                 <Input value={form.codice_fiscale ?? ''} onChange={f('codice_fiscale')} placeholder="ABCDEF01G23H456I" maxLength={20} />
               </FormField>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
               <FormField label="Codice SDI" error={errors.codice_sdi}>
                 <Input value={form.codice_sdi ?? ''} onChange={f('codice_sdi')} placeholder="ABC1234" maxLength={7} />
               </FormField>
@@ -176,7 +180,7 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
             <FormField label="Indirizzo" error={errors.indirizzo_sede}>
               <Input value={form.indirizzo_sede ?? ''} onChange={f('indirizzo_sede')} placeholder="Via Roma 1" maxLength={500} />
             </FormField>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 16 }}>
               <FormField label="CAP" error={errors.cap}>
                 <Input value={form.cap ?? ''} onChange={f('cap')} placeholder="00100" maxLength={10} />
               </FormField>
@@ -195,7 +199,7 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
           {/* Contatti */}
           <fieldset style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <legend style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94', marginBottom: 4 }}>Contatti</legend>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
               <FormField label="Email" error={errors.email}>
                 <Input type="email" value={form.email ?? ''} onChange={f('email')} placeholder="info@azienda.com" maxLength={500} />
               </FormField>
@@ -203,7 +207,7 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
                 <Input type="email" value={form.pec ?? ''} onChange={f('pec')} placeholder="azienda@pec.it" maxLength={500} />
               </FormField>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
               <FormField label="Telefono" error={errors.telefono}>
                 <Input value={form.telefono ?? ''} onChange={f('telefono')} placeholder="+39 02 1234567" maxLength={30} />
               </FormField>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Menu } from 'lucide-react'
 import { Sidebar, type Page } from './Sidebar'
 import { Dashboard }           from '../../pages/Dashboard'
 import { ClientiPage }         from '../../pages/ClientiPage'
@@ -14,6 +15,9 @@ import { SecurityEventsPage }  from '../../pages/SecurityEventsPage'
 import { CalendarioPage }     from '../../pages/CalendarioPage'
 import { ProfiloPage }         from '../../pages/ProfiloPage'
 import { useIdleTimeout }      from '../../hooks/useIdleTimeout'
+import { useIsMobile }         from '../../hooks/useIsMobile'
+
+const BRAND = '#005DEF'
 
 const pageTitle: Record<Page, string> = {
   dashboard:        'Dashboard',
@@ -33,6 +37,8 @@ const pageTitle: Record<Page, string> = {
 
 export const Shell = () => {
   useIdleTimeout()
+  const isMobile = useIsMobile()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [page, setPage] = useState<Page>('dashboard')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [selectedProgettoId, setSelectedProgettoId] = useState<string | null>(null)
@@ -51,6 +57,11 @@ export const Shell = () => {
   const navigateToTask = (id: string) => {
     setSelectedTaskId(id)
     setPage('task_detail')
+  }
+
+  const handlePageChange = (p: Page) => {
+    setPage(p)
+    setSidebarOpen(false)
   }
 
   const renderPage = () => {
@@ -79,35 +90,83 @@ export const Shell = () => {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F4F6F9' }}>
-      <Sidebar current={page} onChange={setPage} />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {/* Overlay mobile */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 40,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(2px)',
+          }}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div style={isMobile ? {
+        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50,
+        transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+        willChange: 'transform',
+      } : {}}>
+        <Sidebar current={page} onChange={handlePageChange} onClose={isMobile ? () => setSidebarOpen(false) : undefined} />
+      </div>
+
+      {/* Content */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        marginLeft: isMobile ? 0 : undefined,
+      }}>
         {/* Header */}
         <header style={{
           backgroundColor: '#fff',
           borderBottom: '1px solid #E5E7EB',
-          padding: '0 32px',
+          padding: isMobile ? '0 16px' : '0 32px',
           height: 56,
           display: 'flex',
           alignItems: 'center',
+          gap: 12,
           flexShrink: 0,
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
         }}>
-          {page !== 'dashboard' && (
-            <h1 style={{
-              margin: 0,
-              fontSize: '14px',
-              fontWeight: 700,
-              color: '#1A2332',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-            }}>
-              {pageTitle[page]}
-            </h1>
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '8px', margin: '-8px',
+                color: BRAND, display: 'flex', alignItems: 'center',
+                borderRadius: 6,
+              }}
+            >
+              <Menu style={{ width: 22, height: 22 }} />
+            </button>
           )}
+          <h1 style={{
+            margin: 0,
+            fontSize: isMobile ? '13px' : '14px',
+            fontWeight: 700,
+            color: '#1A2332',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}>
+            {pageTitle[page]}
+          </h1>
         </header>
 
-        {/* Content */}
-        <main style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
+        {/* Main */}
+        <main style={{
+          flex: 1,
+          padding: isMobile ? '16px' : '32px',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}>
           {renderPage()}
         </main>
       </div>

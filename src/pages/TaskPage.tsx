@@ -9,6 +9,7 @@ import { Badge }      from '../components/ui/Badge'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const statoBadge: Record<StatoTask, { label: string; color: 'gray' | 'purple' | 'blue' | 'green' }> = {
   todo:        { label: 'Da fare',    color: 'gray' },
@@ -33,6 +34,7 @@ interface TaskPageProps {
 }
 
 export const TaskPage = ({ onViewTask }: TaskPageProps) => {
+  const isMobile = useIsMobile()
   const [rows, setRows]           = useState<Task[]>([])
   const [progetti, setProgetti]   = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
   const [loading, setLoading]     = useState(true)
@@ -96,7 +98,8 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
         : rows.length === 0
           ? <EmptyState icon={CheckSquare} title="Nessun task" description="Crea il primo task per iniziare." action={{ label: 'Nuovo task', onClick: openNew }} />
           : (
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 620 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
                 {['Titolo', 'Progetto', 'Stato', 'Priorità', 'Scadenza', ''].map(h => (
                   <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
@@ -128,6 +131,7 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
                   </div>
                 )
               })}
+              </div>
             </div>
           )
       }
@@ -147,7 +151,7 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
           <FormField label="Descrizione" error={errors.descrizione}>
             <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder="Dettagli del task..." maxLength={2000} />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 16 }}>
             <FormField label="Stato">
               <Select value={form.stato} onChange={f('stato')}>
                 <option value="todo">Da fare</option>

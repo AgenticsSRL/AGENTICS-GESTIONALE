@@ -8,6 +8,7 @@ import { Button }     from '../components/ui/Button'
 import { Badge }      from '../components/ui/Badge'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 
 const statoBadge: Record<StatoProgetto, { label: string; color: 'green' | 'blue' | 'yellow' | 'gray' | 'orange' }> = {
@@ -44,6 +45,7 @@ interface Props {
 }
 
 export const ProgettiPage = ({ onViewProgetto }: Props) => {
+  const isMobile = useIsMobile()
   const [rows, setRows]         = useState<Progetto[]>([])
   const [clienti, setClienti]   = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
   const [loading, setLoading]   = useState(true)
@@ -135,7 +137,7 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
           <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder="Breve descrizione del progetto..." maxLength={2000} />
         </FormField>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
           <FormField label="Data inizio" error={errors.data_inizio}>
             <Input type="date" value={form.data_inizio ?? ''} onChange={f('data_inizio')} />
           </FormField>
@@ -146,7 +148,7 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
 
         {isEditing && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
               <FormField label="Stato" error={errors.stato}>
                 <Select value={form.stato} onChange={f('stato')}>
                   <option value="cliente_demo">Cliente Demo</option>
@@ -164,7 +166,7 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
                 </Select>
               </FormField>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
               <FormField label="Pagamento mensile (€)" error={errors.pagamento_mensile} hint="Importo mensile dal cliente">
                 <Input type="number" step="0.01" value={form.pagamento_mensile ?? ''} onChange={f('pagamento_mensile')} placeholder="0.00" />
               </FormField>
@@ -194,7 +196,8 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
         : rows.length === 0
           ? <EmptyState icon={FolderOpen} title="Nessun progetto" description="Crea il primo progetto per iniziare." action={{ label: 'Nuovo progetto', onClick: openNew }} />
           : (
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 640 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 1fr 1fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
                 {['Progetto', 'Cliente', 'Stato', 'Periodo', 'Pag. mensile', ''].map(h => (
                   <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
@@ -231,6 +234,7 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
                   </div>
                 )
               })}
+              </div>
             </div>
           )
       }

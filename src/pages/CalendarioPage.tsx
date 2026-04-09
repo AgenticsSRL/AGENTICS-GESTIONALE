@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { safeErrorMessage } from '../lib/errors'
@@ -50,6 +50,11 @@ const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Lug
 
 const isSameDay = (a: string, b: string) => a.slice(0, 10) === b.slice(0, 10)
 
+const parseTimeToMinutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number)
+  return h * 60 + (m || 0)
+}
+
 const getMonthDays = (year: number, month: number): Date[] => {
   const first = new Date(year, month, 1)
   const dayOfWeek = (first.getDay() + 6) % 7
@@ -75,7 +80,55 @@ const getWeekDays = (baseDate: Date): Date[] => {
   return days
 }
 
-const ORE = Array.from({ length: 24 }, (_, i) => `${pad(i)}:00`)
+/* Layout eventi sovrapposti: assegna colonna a ciascun evento */
+interface EventoLayered extends Evento {
+  colIdx: number
+  colCount: number
+}
+
+const layoutEvents = (events: Evento[]): EventoLayered[] => {
+  const sorted = [...events].sort((a, b) => {
+    const diff = parseTimeToMinutes(a.ora_inizio) - parseTimeToMinutes(b.ora_inizio)
+    return diff !== 0 ? diff : parseTimeToMinutes(a.ora_fine) - parseTimeToMinutes(b.ora_fine)
+  })
+
+  // groups di eventi sovrapposti
+  type Group = { end: number; events: EventoLayered[] }
+  const groups: Group[] = []
+
+  for (const ev of sorted) {
+    const start = parseTimeToMinutes(ev.ora_inizio)
+    const end = parseTimeToMinutes(ev.ora_fine)
+
+    // cerca gruppo con overlap
+    let placed = false
+    for (const grp of groups) {
+      if (start < grp.end) {
+        // overlapping group
+        const colIdx = grp.events.length
+        const layered: EventoLayered = { ...ev, colIdx, colCount: 1 }
+        grp.events.push(layered)
+        grp.end = Math.max(grp.end, end)
+        placed = true
+        break
+      }
+    }
+    if (!placed) {
+      const layered: EventoLayered = { ...ev, colIdx: 0, colCount: 1 }
+      groups.push({ end, events: [layered] })
+    }
+  }
+
+  // aggiorna colCount per ogni gruppo
+  const result: EventoLayered[] = []
+  for (const grp of groups) {
+    const count = grp.events.length
+    for (const ev of grp.events) {
+      result.push({ ...ev, colCount: count })
+    }
+  }
+  return result
+}
 
 const emptyForm = (date?: string) => ({
   titolo: '',
@@ -160,7 +213,7 @@ export const CalendarioPage = () => {
     setModal(true)
   }
 
-  const saveEvento = async (e: React.FormEvent) => {
+  const saveEvento = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     if (!form.titolo.trim()) return
     setSaving(true)
@@ -199,7 +252,7 @@ export const CalendarioPage = () => {
   }
 
   /* Queries */
-  const eventsOnDate = (dateStr: string) => eventi.filter(ev => isSameDay(ev.data_inizio, dateStr))
+  const eventsOnDate = useCallback((dateStr: string) => eventi.filter(ev => isSameDay(ev.data_inizio, dateStr)), [eventi])
   const todayStr = fmtDateISO(today)
 
   if (loading) return <div style={{ color: '#6C7F94', fontSize: 13, padding: 32 }}>Caricamento...</div>
@@ -433,6 +486,7 @@ const MonthView = ({
           const isToday = dateStr === todayStr
           const isSelected = dateStr === selectedDate
           const dayEvents = eventsOnDate(dateStr)
+          const sorted = [...dayEvents].sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio))
           return (
             <div
               key={i}
@@ -457,7 +511,7 @@ const MonthView = ({
                 {d.getDate()}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {dayEvents.slice(0, 3).map(ev => (
+                {sorted.slice(0, 3).map(ev => (
                   <div
                     key={ev.id}
                     onClick={e => { e.stopPropagation(); onClickEvent(ev) }}
@@ -465,14 +519,14 @@ const MonthView = ({
                       fontSize: 10, fontWeight: 500, color: '#fff',
                       backgroundColor: ev.colore || '#1A2332',
                       padding: '1px 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      cursor: 'pointer',
+                      cursor: 'pointer', borderRadius: 2,
                     }}
                   >
                     {ev.ora_inizio.slice(0, 5)} {ev.titolo}
                   </div>
                 ))}
-                {dayEvents.length > 3 && (
-                  <div style={{ fontSize: 9, color: '#6C7F94', padding: '1px 4px' }}>+{dayEvents.length - 3} altri</div>
+                {sorted.length > 3 && (
+                  <div style={{ fontSize: 9, color: '#6C7F94', padding: '1px 4px' }}>+{sorted.length - 3} altri</div>
                 )}
               </div>
             </div>
@@ -485,6 +539,10 @@ const MonthView = ({
 
 /* ── Week View ── */
 
+const HOUR_HEIGHT = 64 // px per ora
+const FIRST_HOUR = 7
+const LAST_HOUR = 23
+
 const WeekView = ({
   baseDate, todayStr, eventsOnDate, onNewEvent, onClickEvent,
 }: {
@@ -492,24 +550,77 @@ const WeekView = ({
   eventsOnDate: (d: string) => Evento[]; onNewEvent: (d: string) => void; onClickEvent: (e: Evento) => void
 }) => {
   const weekDays = getWeekDays(baseDate)
-  const hours = ORE.slice(7, 22)
+  const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i)
+  const totalHeight = (LAST_HOUR - FIRST_HOUR) * HOUR_HEIGHT
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [nowMinutes, setNowMinutes] = useState<number>(() => {
+    const n = new Date()
+    return n.getHours() * 60 + n.getMinutes()
+  })
+
+  // Scroll all'ora corrente all'avvio
+  useEffect(() => {
+    if (scrollRef.current) {
+      const nowH = new Date().getHours()
+      const scrollTo = Math.max(0, (nowH - FIRST_HOUR - 1) * HOUR_HEIGHT)
+      scrollRef.current.scrollTop = scrollTo
+    }
+  }, [])
+
+  // Aggiorna linea ora corrente ogni minuto
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const n = new Date()
+      setNowMinutes(n.getHours() * 60 + n.getMinutes())
+    }, 60_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const nowTop = ((nowMinutes - FIRST_HOUR * 60) / 60) * HOUR_HEIGHT
+
+  // Pre-calcola layout per ogni giorno
+  const dayLayouts = useMemo(() => {
+    return weekDays.map(d => {
+      const dateStr = fmtDateISO(d)
+      const dayEvents = eventsOnDate(dateStr)
+      return { dateStr, events: layoutEvents(dayEvents) }
+    })
+  }, [weekDays, eventsOnDate])
 
   return (
-    <div style={{ border: '1px solid #E5E7EB', backgroundColor: '#fff', overflowX: 'auto' }}>
-      {/* Day headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(7, 1fr)', borderBottom: '1px solid #E5E7EB', position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 2 }}>
-        <div style={{ borderRight: '1px solid #F3F4F6' }} />
+    <div style={{ border: '1px solid #E5E7EB', backgroundColor: '#fff', display: 'flex', flexDirection: 'column' }}>
+      {/* Day headers sticky */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)',
+        borderBottom: '2px solid #E5E7EB',
+        position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 10,
+      }}>
+        <div style={{ borderRight: '1px solid #E5E7EB' }} />
         {weekDays.map((d, i) => {
           const dateStr = fmtDateISO(d)
           const isToday = dateStr === todayStr
+          const isSat = i === 5
+          const isSun = i === 6
           return (
-            <div key={i} style={{ padding: '8px 6px', textAlign: 'center', borderRight: i < 6 ? '1px solid #F3F4F6' : 'none' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{GIORNI[i]}</div>
+            <div
+              key={i}
+              style={{
+                padding: '8px 4px',
+                textAlign: 'center',
+                borderRight: i < 6 ? '1px solid #F3F4F6' : 'none',
+                backgroundColor: isToday ? '#F0F4FF' : 'transparent',
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, color: isSun ? '#DC2626' : isSat ? '#6C7F94' : '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {GIORNI[i]}
+              </div>
               <div style={{
-                fontSize: 18, fontWeight: isToday ? 700 : 400,
-                color: isToday ? '#fff' : '#1A2332',
-                width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: isToday ? '#1A2332' : 'transparent', borderRadius: '50%', marginTop: 2,
+                fontSize: 20, fontWeight: isToday ? 700 : 400,
+                color: isToday ? '#fff' : isSun ? '#DC2626' : '#1A2332',
+                width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: isToday ? '#1A2332' : 'transparent',
+                borderRadius: '50%', marginTop: 2,
               }}>
                 {d.getDate()}
               </div>
@@ -517,50 +628,150 @@ const WeekView = ({
           )
         })}
       </div>
-      {/* Time grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(7, 1fr)' }}>
-        {hours.map(hour => (
-          <div key={hour} style={{ display: 'contents' }}>
-            <div style={{ padding: '4px 6px', fontSize: 10, color: '#9CA3AF', textAlign: 'right', borderRight: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6', height: 48, fontWeight: 500 }}>
-              {hour}
-            </div>
-            {weekDays.map((d, di) => {
-              const dateStr = fmtDateISO(d)
-              const dayEvents = eventsOnDate(dateStr)
-              const hourNum = parseInt(hour)
-              const hourEvents = dayEvents.filter(ev => {
-                const evH = parseInt(ev.ora_inizio)
-                return evH === hourNum
-              })
-              return (
-                <div
-                  key={di}
-                  onDoubleClick={() => onNewEvent(dateStr)}
-                  style={{
-                    borderRight: di < 6 ? '1px solid #F3F4F6' : 'none',
-                    borderBottom: '1px solid #F3F4F6',
-                    height: 48, padding: '1px 2px', position: 'relative', cursor: 'pointer',
-                  }}
-                >
-                  {hourEvents.map(ev => (
+
+      {/* Scrollable grid */}
+      <div ref={scrollRef} style={{ overflowY: 'auto', maxHeight: 640 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', position: 'relative' }}>
+
+          {/* Colonna ore */}
+          <div style={{ position: 'relative', borderRight: '1px solid #E5E7EB' }}>
+            {hours.map(h => (
+              <div
+                key={h}
+                style={{
+                  height: HOUR_HEIGHT,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-end',
+                  paddingRight: 8,
+                  paddingTop: 4,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: '#9CA3AF',
+                  boxSizing: 'border-box',
+                  borderBottom: '1px solid #F3F4F6',
+                }}
+              >
+                {pad(h)}:00
+              </div>
+            ))}
+          </div>
+
+          {/* Colonne giorni */}
+          {dayLayouts.map(({ dateStr, events }, di) => {
+            const isToday = dateStr === todayStr
+            const nowVisible = isToday && nowMinutes >= FIRST_HOUR * 60 && nowMinutes <= LAST_HOUR * 60
+
+            return (
+              <div
+                key={di}
+                style={{
+                  position: 'relative',
+                  height: totalHeight,
+                  borderRight: di < 6 ? '1px solid #F3F4F6' : 'none',
+                  backgroundColor: isToday ? '#FAFBFF' : 'transparent',
+                  cursor: 'pointer',
+                }}
+                onDoubleClick={() => onNewEvent(dateStr)}
+              >
+                {/* Righe ore */}
+                {hours.map((_, hi) => (
+                  <div
+                    key={hi}
+                    style={{
+                      position: 'absolute',
+                      top: hi * HOUR_HEIGHT,
+                      left: 0, right: 0,
+                      height: HOUR_HEIGHT,
+                      borderBottom: '1px solid #F3F4F6',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {/* Linea mezzora */}
+                    <div style={{
+                      position: 'absolute',
+                      top: HOUR_HEIGHT / 2,
+                      left: 0, right: 0,
+                      borderBottom: '1px dashed #F3F4F6',
+                    }} />
+                  </div>
+                ))}
+
+                {/* Linea ora corrente */}
+                {nowVisible && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: nowTop,
+                      left: 0, right: 0,
+                      zIndex: 5,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#DC2626', flexShrink: 0, marginLeft: -4 }} />
+                      <div style={{ flex: 1, height: 2, backgroundColor: '#DC2626' }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Eventi */}
+                {events.map(ev => {
+                  const startMin = parseTimeToMinutes(ev.ora_inizio)
+                  const endMin = parseTimeToMinutes(ev.ora_fine)
+                  const clampedStart = Math.max(startMin, FIRST_HOUR * 60)
+                  const clampedEnd = Math.min(endMin, LAST_HOUR * 60)
+                  if (clampedEnd <= clampedStart) return null
+
+                  const top = ((clampedStart - FIRST_HOUR * 60) / 60) * HOUR_HEIGHT
+                  const height = Math.max(((clampedEnd - clampedStart) / 60) * HOUR_HEIGHT - 2, 18)
+                  const durationMin = endMin - startMin
+
+                  const colGap = 2
+                  const totalCols = ev.colCount
+                  const colWidth = totalCols > 1 ? `calc((100% - ${colGap * (totalCols + 1)}px) / ${totalCols})` : `calc(100% - 4px)`
+                  const leftOffset = totalCols > 1
+                    ? `calc(${colGap}px + ${ev.colIdx} * (100% - ${colGap * (totalCols + 1)}px) / ${totalCols} + ${ev.colIdx * colGap}px)`
+                    : '2px'
+
+                  return (
                     <div
                       key={ev.id}
                       onClick={e => { e.stopPropagation(); onClickEvent(ev) }}
                       style={{
-                        fontSize: 10, fontWeight: 500, color: '#fff',
+                        position: 'absolute',
+                        top,
+                        left: leftOffset,
+                        width: colWidth,
+                        height,
                         backgroundColor: ev.colore || '#1A2332',
-                        padding: '2px 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        cursor: 'pointer', marginBottom: 1,
+                        borderRadius: 3,
+                        padding: '2px 5px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        zIndex: 3,
+                        boxSizing: 'border-box',
+                        borderLeft: `3px solid rgba(0,0,0,0.2)`,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
                       }}
+                      title={`${ev.titolo} · ${ev.ora_inizio}–${ev.ora_fine}`}
                     >
-                      {ev.titolo}
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ev.titolo}
+                      </div>
+                      {height >= 28 && (
+                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap' }}>
+                          {ev.ora_inizio.slice(0, 5)}–{ev.ora_fine.slice(0, 5)}
+                          {durationMin > 0 && ` · ${durationMin}min`}
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        ))}
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
@@ -596,10 +807,10 @@ const DayDetail = ({
               onClick={() => onClickEvent(ev)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
-                border: '1px solid #F3F4F6', cursor: 'pointer',
+                border: '1px solid #F3F4F6', cursor: 'pointer', borderRadius: 4,
               }}
             >
-              <div style={{ width: 4, height: 28, backgroundColor: ev.colore || '#1A2332', flexShrink: 0 }} />
+              <div style={{ width: 4, height: 28, backgroundColor: ev.colore || '#1A2332', flexShrink: 0, borderRadius: 2 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#1A2332', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.titolo}</div>
                 <div style={{ fontSize: 11, color: '#6C7F94' }}>

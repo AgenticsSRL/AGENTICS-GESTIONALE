@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Page } from '../components/layout/Sidebar'
 import type { StatoProgetto, StatoTask, SpesaRicorrente } from '../types'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const BRAND = '#005DEF'
 
@@ -105,22 +106,23 @@ const daysUntil = (d: string) => {
 
 /* ─── Components ─── */
 
-const StatCard = ({ label, value, sub, onClick }: {
-  label: string; value: string | number; sub?: string; onClick?: () => void
+const StatCard = ({ label, value, sub, onClick, compact }: {
+  label: string; value: string | number; sub?: string; onClick?: () => void; compact?: boolean
 }) => (
   <div
     onClick={onClick}
     style={{
       backgroundColor: '#fff', borderBottom: `2px solid ${BRAND}`,
-      padding: '22px 24px', cursor: onClick ? 'pointer' : 'default',
+      padding: compact ? '14px 16px' : '22px 24px',
+      cursor: onClick ? 'pointer' : 'default',
       transition: 'background-color 0.12s',
     }}
     onMouseEnter={e => { if (onClick) e.currentTarget.style.backgroundColor = '#F9FAFB' }}
     onMouseLeave={e => { if (onClick) e.currentTarget.style.backgroundColor = '#fff' }}
   >
-    <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B7280', marginBottom: 10 }}>{label}</div>
-    <div style={{ fontSize: 30, fontWeight: 700, color: '#111827', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-    {sub && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>{sub}</div>}
+    <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B7280', marginBottom: compact ? 6 : 10 }}>{label}</div>
+    <div style={{ fontSize: compact ? 22 : 30, fontWeight: 700, color: '#111827', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+    {sub && !compact && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>{sub}</div>}
   </div>
 )
 
@@ -258,6 +260,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
     load()
   }, [])
 
+  const isMobile = useIsMobile()
+
   if (loading) return <div style={{ color: '#6B7280', fontSize: 12, padding: 20, letterSpacing: '0.04em' }}>Caricamento...</div>
   if (!stats) return null
 
@@ -287,16 +291,16 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       )}
 
       {/* ── KPI ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, backgroundColor: '#E5E7EB' }}>
-        <StatCard label="Clienti" value={stats.totalClienti} onClick={() => onNavigate('clienti')} />
-        <StatCard label="Progetti attivi" value={stats.progettiAttivi} sub={`${pipelineTotal} totali`} onClick={() => onNavigate('progetti')} />
-        <StatCard label="Task in corso" value={stats.taskInCorso} sub={`${taskTotal} totali`} onClick={() => onNavigate('task')} />
-        <StatCard label="Ricavo mensile" value={fmtEur(stats.ricavoMensile)} sub="progetti attivi" />
-        <StatCard label="Spese mese" value={fmtEur(stats.speseMese + stats.ricorrentiMese)} sub={`${fmtEur(stats.speseMese)} una tantum + ${fmtEur(stats.ricorrentiMese)} ricorrenti`} />
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 1, backgroundColor: '#E5E7EB' }}>
+        <StatCard label="Clienti" value={stats.totalClienti} onClick={() => onNavigate('clienti')} compact={isMobile} />
+        <StatCard label="Progetti attivi" value={stats.progettiAttivi} sub={`${pipelineTotal} totali`} onClick={() => onNavigate('progetti')} compact={isMobile} />
+        <StatCard label="Task in corso" value={stats.taskInCorso} sub={`${taskTotal} totali`} onClick={() => onNavigate('task')} compact={isMobile} />
+        <StatCard label="Ricavo mensile" value={fmtEur(stats.ricavoMensile)} sub="progetti attivi" compact={isMobile} />
+        <StatCard label="Spese mese" value={fmtEur(stats.speseMese + stats.ricorrentiMese)} sub={`${fmtEur(stats.speseMese)} una tantum + ${fmtEur(stats.ricorrentiMese)} ricorrenti`} compact={isMobile} />
       </div>
 
       {/* ── Charts ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
 
         {/* Pipeline donut */}
         <div style={{ backgroundColor: '#fff', padding: '20px' }}>
@@ -351,7 +355,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       </div>
 
       {/* ── Progetti recenti + Task urgenti ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
         <Section title="Progetti recenti" action={{ label: 'Tutti', onClick: () => onNavigate('progetti') }}>
           {progetti.length === 0
             ? <Empty text="Nessun progetto" />
@@ -396,7 +400,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       </div>
 
       {/* ── Scadenze + Eventi ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
         <Section title="Scadenze prossimi 7 giorni" action={{ label: 'Task', onClick: () => onNavigate('task') }}>
           {taskProssimi.length === 0
             ? <Empty text="Nessuna scadenza" />
