@@ -5,6 +5,15 @@ import { safeErrorMessage } from '../lib/errors'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { sendNotification } from '../lib/notifications'
+
+const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
+
+/** Estrae email valide da un campo partecipanti (separati da virgola/spazio/punto-e-virgola) */
+function parseParticipants(raw: string | null | undefined): string[] {
+  if (!raw) return []
+  return raw.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.includes('@'))
+}
 
 /* ─── Types ─── */
 
@@ -38,6 +47,18 @@ const TIPO_LABEL: Record<TipoEvento, string> = {
 }
 
 const COLORI = ['#1A2332', '#005DEF', '#6C7F94', '#DC2626', '#059669', '#D97706', '#7C3AED']
+
+/* ─── Hook ─── */
+
+const useWindowWidth = () => {
+  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024)
+  useEffect(() => {
+    const h = () => setW(window.innerWidth)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  return w
+}
 
 /* ─── Helpers ─── */
 
@@ -147,6 +168,9 @@ const emptyForm = (date?: string) => ({
 /* ─── Component ─── */
 
 export const CalendarioPage = () => {
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth < 640
+
   const [eventi, setEventi] = useState<Evento[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -179,6 +203,7 @@ export const CalendarioPage = () => {
   const nav = (dir: -1 | 1) => {
     const d = new Date(currentDate)
     if (vista === 'mese') d.setMonth(d.getMonth() + dir)
+    else if (isMobile) d.setDate(d.getDate() + dir)
     else d.setDate(d.getDate() + 7 * dir)
     setCurrentDate(d)
   }
@@ -238,6 +263,41 @@ export const CalendarioPage = () => {
       ? await supabase.from('calendario_eventi').update(payload).eq('id', editing.id)
       : await supabase.from('calendario_eventi').insert(payload)
     if (error) { setSaveError(safeErrorMessage(error)); setSaving(false); return }
+
+    // ── Notifica creazione evento ai partecipanti ──────────────────────────
+    if (!editing) {
+      const destinatari = new Set<string>([ADMIN_EMAIL])
+      parseParticipants(form.partecipanti).forEach(e => destinatari.add(e))
+      const fmtDateIt = (iso: string) =>
+        new Date(iso).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+      const dataFormattata = fmtDateIt(form.data_inizio)
+      const luogo = form.luogo.trim() || null
+      const descrizione = form.descrizione.trim() || null
+      sendNotification({
+        to: [...destinatari],
+        subject: `📅 Nuovo evento: ${form.titolo}`,
+        params: {
+          notification_label: 'NUOVO EVENTO CALENDARIO',
+          email_title: 'Evento aggiunto al calendario',
+          email_subtitle: form.titolo,
+          recipient_name: 'Team',
+          intro_text: `È stato aggiunto un nuovo evento al calendario: "${form.titolo}". Riceverai un promemoria 5, 3 e 1 giorno prima della data.`,
+          update_type: `Evento — ${form.tipo}`,
+          subject: form.titolo,
+          reference_code: `Tipo: ${form.tipo}`,
+          date: `${dataFormattata} — ${form.ora_inizio} / ${form.ora_fine}`,
+          status: 'Programmato',
+          message_body: `Nuovo evento in calendario:<br><br><strong>${form.titolo}</strong><br>Data: <strong>${dataFormattata}</strong><br>Orario: <strong>${form.ora_inizio} – ${form.ora_fine}</strong>${luogo ? `<br>Luogo: <strong>${luogo}</strong>` : ''}${descrizione ? `<br><br>${descrizione}` : ''}`,
+          next_steps: 'Riceverai promemoria automatici 5, 3 e 1 giorno prima dell\'evento. Puoi visualizzare tutti i dettagli nel calendario.',
+          cta_url: 'https://gestionale.agentics.eu/calendario',
+          cta_label: 'Apri il Calendario →',
+          secondary_note: luogo ? `Luogo: ${luogo}` : '',
+          footer_text: 'Notifica automatica — gestionale Agentics.',
+        },
+      })
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     setSaving(false)
     setModal(false)
     loadEventi()
@@ -264,44 +324,66 @@ export const CalendarioPage = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: 16, gap: isMobile ? 8 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => nav(-1)} style={{ background: 'none', border: '1px solid #E5E7EB', cursor: 'pointer', padding: '6px 8px', display: 'flex', color: '#1A2332' }}>
             <ChevronLeft style={{ width: 14, height: 14 }} />
           </button>
           <button onClick={() => nav(1)} style={{ background: 'none', border: '1px solid #E5E7EB', cursor: 'pointer', padding: '6px 8px', display: 'flex', color: '#1A2332' }}>
             <ChevronRight style={{ width: 14, height: 14 }} />
           </button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#1A2332' }}>
+          <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: '#1A2332', flex: 1 }}>
             {vista === 'mese'
               ? `${MESI[month]} ${year}`
-              : (() => {
-                  const wk = getWeekDays(currentDate)
-                  const s = wk[0]; const e = wk[6]
-                  return `${pad(s.getDate())} ${MESI[s.getMonth()].slice(0, 3)} – ${pad(e.getDate())} ${MESI[e.getMonth()].slice(0, 3)} ${e.getFullYear()}`
-                })()
+              : isMobile
+                ? `${pad(currentDate.getDate())} ${MESI[currentDate.getMonth()].slice(0, 3)} ${currentDate.getFullYear()}`
+                : (() => {
+                    const wk = getWeekDays(currentDate)
+                    const s = wk[0]; const e = wk[6]
+                    return `${pad(s.getDate())} ${MESI[s.getMonth()].slice(0, 3)} – ${pad(e.getDate())} ${MESI[e.getMonth()].slice(0, 3)} ${e.getFullYear()}`
+                  })()
             }
           </span>
           <Button size="sm" variant="ghost" onClick={goToday}>Oggi</Button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', border: '1px solid #E5E7EB' }}>
-            {(['mese', 'settimana'] as Vista[]).map(v => (
-              <button
-                key={v}
-                onClick={() => setVista(v)}
-                style={{
-                  padding: '5px 14px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em',
-                  border: 'none', cursor: 'pointer',
-                  backgroundColor: vista === v ? '#1A2332' : '#fff',
-                  color: vista === v ? '#fff' : '#6C7F94',
-                }}
-              >
-                {v === 'mese' ? 'Mese' : 'Settimana'}
-              </button>
-            ))}
-          </div>
-          <Button size="sm" onClick={() => openNew()}><Plus style={{ width: 12, height: 12 }} /> Nuovo evento</Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: isMobile ? 'space-between' : 'flex-end' }}>
+          {!isMobile && (
+            <div style={{ display: 'flex', border: '1px solid #E5E7EB' }}>
+              {(['mese', 'settimana'] as Vista[]).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setVista(v)}
+                  style={{
+                    padding: '5px 14px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em',
+                    border: 'none', cursor: 'pointer',
+                    backgroundColor: vista === v ? '#1A2332' : '#fff',
+                    color: vista === v ? '#fff' : '#6C7F94',
+                  }}
+                >
+                  {v === 'mese' ? 'Mese' : 'Settimana'}
+                </button>
+              ))}
+            </div>
+          )}
+          {isMobile && (
+            <div style={{ display: 'flex', border: '1px solid #E5E7EB' }}>
+              {(['mese', 'settimana'] as Vista[]).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setVista(v)}
+                  style={{
+                    padding: '5px 10px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em',
+                    border: 'none', cursor: 'pointer',
+                    backgroundColor: vista === v ? '#1A2332' : '#fff',
+                    color: vista === v ? '#fff' : '#6C7F94',
+                  }}
+                >
+                  {v === 'mese' ? 'Mese' : 'Giorno'}
+                </button>
+              ))}
+            </div>
+          )}
+          <Button size="sm" onClick={() => openNew()}><Plus style={{ width: 12, height: 12 }} /> {isMobile ? 'Nuovo' : 'Nuovo evento'}</Button>
         </div>
       </div>
 
@@ -316,6 +398,7 @@ export const CalendarioPage = () => {
           onSelectDate={setSelectedDate}
           onNewEvent={openNew}
           onClickEvent={setDetailEvent}
+          isMobile={isMobile}
         />
       ) : (
         <WeekView
@@ -324,6 +407,7 @@ export const CalendarioPage = () => {
           eventsOnDate={eventsOnDate}
           onNewEvent={openNew}
           onClickEvent={setDetailEvent}
+          isMobile={isMobile}
         />
       )}
 
@@ -339,7 +423,7 @@ export const CalendarioPage = () => {
       )}
 
       {/* Event detail modal */}
-      <Modal open={!!detailEvent} onClose={() => setDetailEvent(null)} title={detailEvent?.titolo ?? ''} width="440px">
+      <Modal open={!!detailEvent} onClose={() => setDetailEvent(null)} title={detailEvent?.titolo ?? ''} width={isMobile ? 'calc(100vw - 32px)' : '440px'}>
         {detailEvent && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
@@ -368,13 +452,13 @@ export const CalendarioPage = () => {
       </Modal>
 
       {/* Create/Edit modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica evento' : 'Nuovo evento'} width="520px">
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica evento' : 'Nuovo evento'} width={isMobile ? 'calc(100vw - 32px)' : '520px'}>
         <form onSubmit={saveEvento} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {saveError && <p style={{ fontSize: 12, color: '#DC2626' }}>{saveError}</p>}
           <FormField label="Titolo" required>
             <Input value={form.titolo} onChange={e => setForm(p => ({ ...p, titolo: e.target.value }))} maxLength={200} />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Data inizio" required>
               <Input type="date" value={form.data_inizio} onChange={e => setForm(p => ({ ...p, data_inizio: e.target.value, data_fine: p.data_fine < e.target.value ? e.target.value : p.data_fine }))} />
             </FormField>
@@ -390,7 +474,7 @@ export const CalendarioPage = () => {
               <Input type="time" value={form.ora_fine} onChange={e => setForm(p => ({ ...p, ora_fine: e.target.value }))} />
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Tipo">
               <Select value={form.tipo} onChange={e => setForm(p => ({ ...p, tipo: e.target.value as TipoEvento }))}>
                 {Object.entries(TIPO_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -433,7 +517,7 @@ export const CalendarioPage = () => {
       </Modal>
 
       {/* Delete modal */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Elimina evento" width="360px">
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Elimina evento" width={isMobile ? 'calc(100vw - 32px)' : '360px'}>
         <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Eliminare questo evento dal calendario?</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={() => setDeleteId(null)}>Annulla</Button>
@@ -461,11 +545,11 @@ const formatDateLong = (d: string) => {
 /* ── Month View ── */
 
 const MonthView = ({
-  year, month, todayStr, selectedDate, eventsOnDate, onSelectDate, onNewEvent, onClickEvent,
+  year, month, todayStr, selectedDate, eventsOnDate, onSelectDate, onNewEvent, onClickEvent, isMobile,
 }: {
   year: number; month: number; todayStr: string; selectedDate: string | null
   eventsOnDate: (d: string) => Evento[]; onSelectDate: (d: string) => void
-  onNewEvent: (d: string) => void; onClickEvent: (e: Evento) => void
+  onNewEvent: (d: string) => void; onClickEvent: (e: Evento) => void; isMobile: boolean
 }) => {
   const days = getMonthDays(year, month)
   return (
@@ -493,7 +577,7 @@ const MonthView = ({
               onClick={() => onSelectDate(dateStr)}
               onDoubleClick={() => onNewEvent(dateStr)}
               style={{
-                minHeight: 90, padding: '4px 6px',
+                minHeight: isMobile ? 52 : 90, padding: isMobile ? '3px 2px' : '4px 6px',
                 borderRight: (i + 1) % 7 !== 0 ? '1px solid #F3F4F6' : 'none',
                 borderBottom: i < 35 ? '1px solid #F3F4F6' : 'none',
                 backgroundColor: isSelected ? '#F8F9FB' : '#fff',
@@ -502,33 +586,54 @@ const MonthView = ({
               }}
             >
               <div style={{
-                fontSize: 12, fontWeight: isToday ? 700 : 400,
+                fontSize: isMobile ? 11 : 12, fontWeight: isToday ? 700 : 400,
                 color: isToday ? '#fff' : '#1A2332',
-                width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: isMobile ? 20 : 22, height: isMobile ? 20 : 22,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 backgroundColor: isToday ? '#1A2332' : 'transparent',
                 borderRadius: '50%', marginBottom: 2,
               }}>
                 {d.getDate()}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {sorted.slice(0, 3).map(ev => (
-                  <div
-                    key={ev.id}
-                    onClick={e => { e.stopPropagation(); onClickEvent(ev) }}
-                    style={{
-                      fontSize: 10, fontWeight: 500, color: '#fff',
-                      backgroundColor: ev.colore || '#1A2332',
-                      padding: '1px 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      cursor: 'pointer', borderRadius: 2,
-                    }}
-                  >
-                    {ev.ora_inizio.slice(0, 5)} {ev.titolo}
-                  </div>
-                ))}
-                {sorted.length > 3 && (
-                  <div style={{ fontSize: 9, color: '#6C7F94', padding: '1px 4px' }}>+{sorted.length - 3} altri</div>
-                )}
-              </div>
+              {isMobile ? (
+                /* Dot indicators su mobile */
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
+                  {sorted.slice(0, 3).map(ev => (
+                    <div
+                      key={ev.id}
+                      onClick={e => { e.stopPropagation(); onClickEvent(ev) }}
+                      style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        backgroundColor: ev.colore || '#1A2332',
+                        cursor: 'pointer', flexShrink: 0,
+                      }}
+                    />
+                  ))}
+                  {sorted.length > 3 && (
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#9CA3AF', flexShrink: 0 }} />
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {sorted.slice(0, 3).map(ev => (
+                    <div
+                      key={ev.id}
+                      onClick={e => { e.stopPropagation(); onClickEvent(ev) }}
+                      style={{
+                        fontSize: 10, fontWeight: 500, color: '#fff',
+                        backgroundColor: ev.colore || '#1A2332',
+                        padding: '1px 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        cursor: 'pointer', borderRadius: 2,
+                      }}
+                    >
+                      {ev.ora_inizio.slice(0, 5)} {ev.titolo}
+                    </div>
+                  ))}
+                  {sorted.length > 3 && (
+                    <div style={{ fontSize: 9, color: '#6C7F94', padding: '1px 4px' }}>+{sorted.length - 3} altri</div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -544,12 +649,14 @@ const FIRST_HOUR = 7
 const LAST_HOUR = 23
 
 const WeekView = ({
-  baseDate, todayStr, eventsOnDate, onNewEvent, onClickEvent,
+  baseDate, todayStr, eventsOnDate, onNewEvent, onClickEvent, isMobile,
 }: {
-  baseDate: Date; todayStr: string
+  baseDate: Date; todayStr: string; isMobile: boolean
   eventsOnDate: (d: string) => Evento[]; onNewEvent: (d: string) => void; onClickEvent: (e: Evento) => void
 }) => {
-  const weekDays = getWeekDays(baseDate)
+  const allWeekDays = getWeekDays(baseDate)
+  // Su mobile mostra solo il giorno corrente (giornaliero)
+  const weekDays = isMobile ? [baseDate] : allWeekDays
   const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i)
   const totalHeight = (LAST_HOUR - FIRST_HOUR) * HOUR_HEIGHT
 
@@ -592,7 +699,7 @@ const WeekView = ({
     <div style={{ border: '1px solid #E5E7EB', backgroundColor: '#fff', display: 'flex', flexDirection: 'column' }}>
       {/* Day headers sticky */}
       <div style={{
-        display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)',
+        display: 'grid', gridTemplateColumns: `${isMobile ? '44px' : '52px'} repeat(${weekDays.length}, 1fr)`,
         borderBottom: '2px solid #E5E7EB',
         position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 10,
       }}>
@@ -630,8 +737,8 @@ const WeekView = ({
       </div>
 
       {/* Scrollable grid */}
-      <div ref={scrollRef} style={{ overflowY: 'auto', maxHeight: 640 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', position: 'relative' }}>
+      <div ref={scrollRef} style={{ overflowY: 'auto', maxHeight: isMobile ? 'calc(100vh - 220px)' : 640 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `${isMobile ? '44px' : '52px'} repeat(${weekDays.length}, 1fr)`, position: 'relative' }}>
 
           {/* Colonna ore */}
           <div style={{ position: 'relative', borderRight: '1px solid #E5E7EB' }}>

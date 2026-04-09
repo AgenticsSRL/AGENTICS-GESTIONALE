@@ -10,6 +10,14 @@ import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { useIsMobile } from '../hooks/useIsMobile'
+import {
+  notifyTaskAssegnato,
+  notifyTaskUrgente,
+  notifyTaskInReview,
+  notifyTaskCompletato,
+} from '../lib/notifications'
+
+const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
 const statoBadge: Record<StatoTask, { label: string; color: 'gray' | 'purple' | 'blue' | 'green' }> = {
   todo:        { label: 'Da fare',    color: 'gray' },
@@ -75,6 +83,73 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
       ? await supabase.from('task').update(payload).eq('id', editing.id)
       : await supabase.from('task').insert(payload)
     if (error) { setErrors({ _form: safeErrorMessage(error) }); setSaving(false); return }
+
+    // ── Notifiche ──────────────────────────────────────────────────────────
+    const { data: { user } } = await supabase.auth.getUser()
+    const currentEmail = user?.email ?? ADMIN_EMAIL
+    const progettoNome = progetti.find(p => p.id === form.progetto_id)?.nome ?? 'N/A'
+
+    if (!editing) {
+      // Nuovo task: notifica assegnatario se diverso dall'utente corrente
+      if (form.assegnatario && form.assegnatario !== currentEmail) {
+        notifyTaskAssegnato({
+          taskTitolo: form.titolo,
+          taskId: '',
+          progetto: progettoNome,
+          priorita: form.priorita,
+          scadenza: form.scadenza,
+          assegnatarioEmail: form.assegnatario,
+          assegnatarioNome: form.assegnatario.split('@')[0],
+        })
+      }
+      // Nuovo task urgente: avvisa assegnatario + admin
+      if (form.priorita === 'urgente') {
+        notifyTaskUrgente({
+          taskTitolo: form.titolo,
+          progetto: progettoNome,
+          scadenza: form.scadenza,
+          assegnatarioEmail: form.assegnatario ?? ADMIN_EMAIL,
+          assegnatarioNome: (form.assegnatario ?? ADMIN_EMAIL).split('@')[0],
+          adminEmail: ADMIN_EMAIL,
+        })
+      }
+    } else {
+      // Modifica: controlla cosa è cambiato
+      const assegnatarioCambiato = form.assegnatario !== editing.assegnatario
+      if (assegnatarioCambiato && form.assegnatario && form.assegnatario !== currentEmail) {
+        notifyTaskAssegnato({
+          taskTitolo: form.titolo,
+          taskId: editing.id,
+          progetto: progettoNome,
+          priorita: form.priorita,
+          scadenza: form.scadenza,
+          assegnatarioEmail: form.assegnatario,
+          assegnatarioNome: form.assegnatario.split('@')[0],
+        })
+      }
+      if (form.stato === 'in_review' && editing.stato !== 'in_review') {
+        notifyTaskInReview({
+          taskTitolo: form.titolo,
+          progetto: progettoNome,
+          assegnatarioEmail: form.assegnatario ?? currentEmail,
+          reviewerEmail: ADMIN_EMAIL,
+          reviewerNome: 'Lorenzo',
+        })
+      }
+      if (form.stato === 'done' && editing.stato !== 'done') {
+        // Notifica chi ha assegnato il task (admin se diverso dall'assegnatario)
+        const notificaEmail = form.assegnatario !== currentEmail ? ADMIN_EMAIL : (editing.assegnatario ?? ADMIN_EMAIL)
+        notifyTaskCompletato({
+          taskTitolo: form.titolo,
+          progetto: progettoNome,
+          assegnatarioEmail: form.assegnatario ?? currentEmail,
+          notificaEmail,
+          notificaNome: notificaEmail === ADMIN_EMAIL ? 'Lorenzo' : notificaEmail.split('@')[0],
+        })
+      }
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     setSaving(false); setModal(false); load()
   }
 

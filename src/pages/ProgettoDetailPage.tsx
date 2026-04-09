@@ -20,6 +20,7 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const BRAND = '#005DEF'
 
@@ -260,6 +261,7 @@ interface Props {
 }
 
 export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
+  const isMobile = useIsMobile()
   const [tab, setTab] = useState<Tab>('overview')
   const [progetto, setProgetto] = useState<Progetto | null>(null)
   const [clienti, setClienti] = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
@@ -348,30 +350,45 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {/* Back + project title bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', fontSize: 13, fontWeight: 500 }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        justifyContent: 'space-between',
+        alignItems: isMobile ? 'flex-start' : 'center',
+        gap: isMobile ? 12 : 0,
+        marginBottom: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', fontSize: 13, fontWeight: 500, padding: 0 }}>
             <ArrowLeft style={{ width: 14, height: 14 }} /> Progetti
           </button>
           <span style={{ color: '#E5E7EB' }}>|</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#1A2332' }}>{progetto.nome}</span>
+          <span style={{ fontSize: isMobile ? 15 : 16, fontWeight: 700, color: '#1A2332' }}>{progetto.nome}</span>
           <Badge label={sb.label} color={sb.color} />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="ghost" size="sm" onClick={openEditProject}><Pencil style={{ width: 12, height: 12 }} /> Modifica</Button>
-          <Button variant="danger" size="sm" onClick={() => setDeleteModal(true)}><Trash2 style={{ width: 12, height: 12 }} /> Elimina</Button>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <Button variant="ghost" size="sm" onClick={openEditProject}><Pencil style={{ width: 12, height: 12 }} /> {isMobile ? '' : 'Modifica'}</Button>
+          <Button variant="danger" size="sm" onClick={() => setDeleteModal(true)}><Trash2 style={{ width: 12, height: 12 }} /> {isMobile ? '' : 'Elimina'}</Button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #E5E7EB', marginBottom: 24 }}>
+      {/* Tabs — scrollable on mobile */}
+      <div style={{
+        display: 'flex',
+        gap: 0,
+        borderBottom: '2px solid #E5E7EB',
+        marginBottom: 20,
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+      }}>
         {TABS.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             style={{
-              padding: '10px 20px',
-              fontSize: 12,
+              padding: isMobile ? '9px 14px' : '10px 20px',
+              fontSize: 11,
               fontWeight: tab === t.id ? 700 : 500,
               color: tab === t.id ? BRAND : '#6C7F94',
               background: 'none',
@@ -379,9 +396,11 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
               borderBottom: tab === t.id ? `2px solid ${BRAND}` : '2px solid transparent',
               cursor: 'pointer',
               textTransform: 'uppercase',
-              letterSpacing: '0.06em',
+              letterSpacing: '0.05em',
               marginBottom: -2,
               transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             {t.label}
@@ -404,12 +423,12 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
 
       {/* Edit project modal */}
       <Modal open={editModal} onClose={() => setEditModal(false)} title="Modifica progetto" width="640px">
-        <form onSubmit={saveProject} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <form onSubmit={saveProject} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {editErrors._form && <p style={{ fontSize: 12, color: '#DC2626' }}>{editErrors._form}</p>}
           <FormField label="Nome progetto" required error={editErrors.nome}>
             <Input value={(editForm.nome as string) ?? ''} onChange={ef('nome')} maxLength={200} />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Cliente" error={editErrors.cliente_id}>
               <Select value={(editForm.cliente_id as string) ?? ''} onChange={ef('cliente_id')}>
                 <option value="">— Seleziona —</option>
@@ -429,7 +448,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
           <FormField label="Descrizione" error={editErrors.descrizione}>
             <TextArea value={(editForm.descrizione as string) ?? ''} onChange={ef('descrizione')} maxLength={2000} />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Data inizio" error={editErrors.data_inizio}>
               <Input type="date" value={(editForm.data_inizio as string) ?? ''} onChange={ef('data_inizio')} />
             </FormField>
@@ -437,7 +456,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
               <Input type="date" value={(editForm.data_fine as string) ?? ''} onChange={ef('data_fine')} />
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Responsabile" error={editErrors.responsabile}>
               <Input value={(editForm.responsabile as string) ?? ''} onChange={ef('responsabile')} />
             </FormField>
@@ -449,7 +468,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
               </Select>
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Pagamento mensile (€)" error={editErrors.pagamento_mensile}>
               <Input type="number" step="0.01" value={(editForm.pagamento_mensile as number) ?? ''} onChange={ef('pagamento_mensile')} />
             </FormField>
@@ -457,7 +476,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
               <Input type="number" step="0.1" value={(editForm.marginalita_stimata as number) ?? ''} onChange={ef('marginalita_stimata')} />
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Link Demo" error={editErrors.link_demo} hint="URL ambiente demo">
               <Input value={(editForm.link_demo as string) ?? ''} onChange={ef('link_demo')} placeholder="https://demo.progetto.com" />
             </FormField>
@@ -467,7 +486,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
             <Button type="button" variant="ghost" onClick={() => setEditModal(false)}>Annulla</Button>
-            <Button type="submit" disabled={editSaving}>{editSaving ? 'Salvataggio...' : 'Salva modifiche'}</Button>
+            <Button type="submit" disabled={editSaving}>{editSaving ? 'Salvataggio...' : 'Salva'}</Button>
           </div>
         </form>
       </Modal>
@@ -494,6 +513,7 @@ const overviewRicToMensile = (r: SpesaRicorrente) => {
 }
 
 const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => void }) => {
+  const isMobile = useIsMobile()
   const [spese, setSpese] = useState<Spesa[]>([])
   const [contratto, setContratto] = useState<ProgettoContratto | null>(null)
   const [taskStats, setTaskStats] = useState({ total: 0, done: 0 })
@@ -550,7 +570,7 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Link Demo + Deploy */}
-      <Card style={{ padding: '16px 24px' }}>
+      <Card style={{ padding: isMobile ? '14px 16px' : '16px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: editingLink ? 12 : 0 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link progetto</span>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -565,18 +585,18 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
           </div>
         </div>
         {editingLink ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Demo</div>
-              <input value={linkDemo} onChange={e => setLinkDemo(e.target.value)} placeholder="https://demo.progetto.com" style={{ width: '100%', fontSize: 13, color: '#1A2332', border: '1px solid #E5E7EB', padding: '6px 10px', outline: 'none', fontFamily: 'inherit' }} autoFocus />
+              <input value={linkDemo} onChange={e => setLinkDemo(e.target.value)} placeholder="https://demo.progetto.com" style={{ width: '100%', fontSize: 13, color: '#1A2332', border: '1px solid #E5E7EB', padding: '6px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} autoFocus />
             </div>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Produzione</div>
-              <input value={linkDeploy} onChange={e => setLinkDeploy(e.target.value)} placeholder="https://progetto.com" style={{ width: '100%', fontSize: 13, color: '#1A2332', border: '1px solid #E5E7EB', padding: '6px 10px', outline: 'none', fontFamily: 'inherit' }} />
+              <input value={linkDeploy} onChange={e => setLinkDeploy(e.target.value)} placeholder="https://progetto.com" style={{ width: '100%', fontSize: 13, color: '#1A2332', border: '1px solid #E5E7EB', padding: '6px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             </div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 12 : 24, marginTop: 8 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Demo</div>
               {linkDemo
@@ -596,29 +616,29 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
       </Card>
 
       {progetto.descrizione && (
-        <Card style={{ padding: '16px 24px' }}>
+        <Card style={{ padding: isMobile ? '14px 16px' : '16px 24px' }}>
           <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.7 }}>{progetto.descrizione}</div>
         </Card>
       )}
 
       {/* KPI */}
-      <Card style={{ padding: '16px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
+      <Card style={{ padding: isMobile ? '14px 16px' : '16px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 16 : 24 }}>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese totali</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalSpese)}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese totali</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalSpese)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Costi ricorrenti / mese</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(costoRicMensile)}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Costi ric. / mese</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(costoRicMensile)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Task</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{taskStats.done}/{taskStats.total}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Task</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{taskStats.done}/{taskStats.total}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margine mese</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: (ricavoMensile - totalSpeseMese - costoRicMensile) >= 0 ? '#1A2332' : '#DC2626', marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margine mese</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: (ricavoMensile - totalSpeseMese - costoRicMensile) >= 0 ? '#1A2332' : '#DC2626', marginTop: 2 }}>
               {fmtEur(ricavoMensile - totalSpeseMese - costoRicMensile)}
             </div>
           </div>
@@ -626,12 +646,12 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
       </Card>
 
       {/* Info + Economic */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
         <Card>
-          <div style={{ padding: '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div style={{ padding: isMobile ? '12px 16px' : '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Informazioni
           </div>
-          <div style={{ padding: '0 24px' }}>
+          <div style={{ padding: isMobile ? '0 16px' : '0 24px' }}>
             <InfoRow label="Cliente" value={progetto.clienti?.nome ?? '—'} />
             <InfoRow label="Responsabile" value={progetto.responsabile ?? '—'} />
             <InfoRow label="Team" value={activeTeam.length > 0 ? `${activeTeam.length} membri` : (progetto.team?.length ? progetto.team.join(', ') : '—')} />
@@ -641,14 +661,14 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
           </div>
         </Card>
         <Card>
-          <div style={{ padding: '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div style={{ padding: isMobile ? '12px 16px' : '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Riepilogo economico
           </div>
-          <div style={{ padding: '0 24px' }}>
+          <div style={{ padding: isMobile ? '0 16px' : '0 24px' }}>
             <InfoRow label="Ricavo mensile" value={fmtEur(ricavoMensile || null)} />
             <InfoRow label="Budget" value={fmtEur(progetto.budget)} />
             <InfoRow label="Spese totali" value={fmtEur(totalSpese)} />
-            <InfoRow label="Costi ricorrenti / mese" value={fmtEur(costoRicMensile)} />
+            <InfoRow label="Costi ric. / mese" value={fmtEur(costoRicMensile)} />
             <InfoRow label="Margine mese" value={
               <span style={{ color: (ricavoMensile - totalSpeseMese - costoRicMensile) >= 0 ? '#1A2332' : '#DC2626', fontWeight: 600 }}>
                 {fmtEur(ricavoMensile - totalSpeseMese - costoRicMensile)}
@@ -697,6 +717,7 @@ const emptyTaskForm: TaskForm = {
 }
 
 const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity: (a: string, d?: string) => Promise<void> }) => {
+  const isMobile = useIsMobile()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -811,23 +832,23 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Select value={filterStato} onChange={e => setFilterStato(e.target.value as StatoTask | '')} style={{ width: 140, height: 32, fontSize: 12 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Select value={filterStato} onChange={e => setFilterStato(e.target.value as StatoTask | '')} style={{ flex: 1, minWidth: 120, height: 34, fontSize: 12 }}>
             <option value="">Tutti gli stati</option>
             <option value="todo">Da fare</option>
             <option value="in_progress">In corso</option>
             <option value="in_review">In review</option>
             <option value="done">Completato</option>
           </Select>
-          <Select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} style={{ width: 160, height: 32, fontSize: 12 }}>
+          <Select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)} style={{ flex: 1, minWidth: 130, height: 34, fontSize: 12 }}>
             <option value="">Tutte le categorie</option>
             {Object.entries(CATEGORIE_GRUPPI).map(([key, g]) => (
               <option key={key} value={key}>{g.label}</option>
             ))}
           </Select>
         </div>
-        <Button size="sm" onClick={openNew}><Plus style={{ width: 12, height: 12 }} /> Nuovo task</Button>
+        <Button size="sm" onClick={openNew} style={isMobile ? { width: '100%', justifyContent: 'center' } : {}}><Plus style={{ width: 12, height: 12 }} /> Nuovo task</Button>
       </div>
 
       {/* Task list */}
@@ -845,36 +866,68 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
             return (
               <Card key={t.id}>
                 {/* Main row */}
-                <div
-                  style={{ display: 'grid', gridTemplateColumns: '28px 2fr 0.8fr 0.8fr 0.7fr 0.6fr 100px', padding: '12px 16px', alignItems: 'center', cursor: 'pointer' }}
-                  onClick={() => setExpandedTask(isExpanded ? null : t.id)}
-                >
-                  <div style={{ display: 'flex' }}>
-                    {isExpanded
-                      ? <ChevronDown style={{ width: 14, height: 14, color: '#6C7F94' }} />
-                      : <ChevronRight style={{ width: 14, height: 14, color: '#6C7F94' }} />
-                    }
+                {isMobile ? (
+                  <div style={{ padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div style={{ flex: 1, marginRight: 8 }}>
+                        <div
+                          style={{ fontSize: 13, fontWeight: 600, color: '#1A2332', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                          onClick={() => setExpandedTask(isExpanded ? null : t.id)}
+                        >
+                          {isExpanded
+                            ? <ChevronDown style={{ width: 13, height: 13, color: '#6C7F94', flexShrink: 0 }} />
+                            : <ChevronRight style={{ width: 13, height: 13, color: '#6C7F94', flexShrink: 0 }} />
+                          }
+                          {t.titolo}
+                        </div>
+                        {t.categoria && (
+                          <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 19 }}>{getCategoriaGruppo(t.categoria)} / {getCategoriaLabel(t.categoria)}</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex' }}><Pencil style={{ width: 13, height: 13 }} /></button>
+                        <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex' }}><Trash2 style={{ width: 13, height: 13 }} /></button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginLeft: 19 }}>
+                      <Badge label={tsb.label} color={tsb.color} />
+                      <Badge label={tpb.label} color={tpb.color} />
+                      {t.assegnatario && <span style={{ fontSize: 11, color: '#6C7F94' }}>{t.assegnatario}</span>}
+                      {t.scadenza && <span style={{ fontSize: 11, color: '#6C7F94' }}>· {fmtDate(t.scadenza)}</span>}
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{t.titolo}</div>
-                    {t.categoria && (
-                      <span style={{ fontSize: 10, color: '#9CA3AF' }}>{getCategoriaGruppo(t.categoria)} / {getCategoriaLabel(t.categoria)}</span>
-                    )}
+                ) : (
+                  <div
+                    style={{ display: 'grid', gridTemplateColumns: '28px 2fr 0.8fr 0.8fr 0.7fr 0.6fr 100px', padding: '12px 16px', alignItems: 'center', cursor: 'pointer' }}
+                    onClick={() => setExpandedTask(isExpanded ? null : t.id)}
+                  >
+                    <div style={{ display: 'flex' }}>
+                      {isExpanded
+                        ? <ChevronDown style={{ width: 14, height: 14, color: '#6C7F94' }} />
+                        : <ChevronRight style={{ width: 14, height: 14, color: '#6C7F94' }} />
+                      }
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{t.titolo}</div>
+                      {t.categoria && (
+                        <span style={{ fontSize: 10, color: '#9CA3AF' }}>{getCategoriaGruppo(t.categoria)} / {getCategoriaLabel(t.categoria)}</span>
+                      )}
+                    </div>
+                    <Badge label={tsb.label} color={tsb.color} />
+                    <Badge label={tpb.label} color={tpb.color} />
+                    <span style={{ fontSize: 12, color: '#4B5563' }}>{t.assegnatario ?? '—'}</span>
+                    <span style={{ fontSize: 12, color: '#4B5563' }}>{t.scadenza ? fmtDate(t.scadenza) : '—'}</span>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil style={{ width: 13, height: 13 }} /></button>
+                      <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 style={{ width: 13, height: 13 }} /></button>
+                    </div>
                   </div>
-                  <Badge label={tsb.label} color={tsb.color} />
-                  <Badge label={tpb.label} color={tpb.color} />
-                  <span style={{ fontSize: 12, color: '#4B5563' }}>{t.assegnatario ?? '—'}</span>
-                  <span style={{ fontSize: 12, color: '#4B5563' }}>{t.scadenza ? fmtDate(t.scadenza) : '—'}</span>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil style={{ width: 13, height: 13 }} /></button>
-                    <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 style={{ width: 13, height: 13 }} /></button>
-                  </div>
-                </div>
+                )}
 
                 {/* Expanded section */}
                 {isExpanded && (
-                  <div style={{ borderTop: '1px solid #F3F4F6', padding: '16px 16px 16px 44px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                  <div style={{ borderTop: '1px solid #F3F4F6', padding: isMobile ? '14px 14px' : '16px 16px 16px 44px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 20 : 24 }}>
                       {/* Left: details + checklist */}
                       <div>
                         {t.descrizione && (
@@ -967,7 +1020,7 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
           <FormField label="Descrizione" error={errors.descrizione}>
             <TextArea value={form.descrizione ?? ''} onChange={tf('descrizione')} maxLength={2000} />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 12 }}>
             <FormField label="Stato">
               <Select value={form.stato} onChange={tf('stato')}>
                 <option value="todo">Da fare</option>
@@ -984,11 +1037,13 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
                 <option value="urgente">Urgente</option>
               </Select>
             </FormField>
-            <FormField label="Scadenza">
-              <Input type="date" value={form.scadenza ?? ''} onChange={tf('scadenza')} />
-            </FormField>
+            <div style={isMobile ? { gridColumn: '1 / -1' } : {}}>
+              <FormField label="Scadenza">
+                <Input type="date" value={form.scadenza ?? ''} onChange={tf('scadenza')} />
+              </FormField>
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             <FormField label="Categoria">
               <Select value={form.categoria ?? ''} onChange={tf('categoria')}>
                 <option value="">— Nessuna —</option>
@@ -1095,6 +1150,7 @@ const TimelineTab = ({ progettoId }: { progettoId: string }) => {
    ════════════════════════════════════════ */
 
 const DocumentiTab = ({ progettoId, logActivity }: { progettoId: string; logActivity: (a: string, d?: string) => Promise<void> }) => {
+  const isMobile = useIsMobile()
   const [docs, setDocs] = useState<ProgettoDocumento[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -1183,25 +1239,55 @@ const DocumentiTab = ({ progettoId, logActivity }: { progettoId: string; logActi
         <EmptyState icon={FileText} title="Nessun documento" description="Carica il primo documento per questo progetto." />
       ) : (
         <Card>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.7fr 1fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
-            {['Nome', 'Tipo', 'Dimensione', 'Data', ''].map(h => (
-              <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
-            ))}
-          </div>
-          {docs.map(d => (
-            <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.7fr 1fr 80px', padding: '12px 20px', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileText style={{ width: 14, height: 14, color: '#6C7F94' }} /> {d.nome}
-              </div>
-              <span style={{ fontSize: 12, color: '#6C7F94' }}>{d.tipo_file ?? '—'}</span>
-              <span style={{ fontSize: 12, color: '#6C7F94' }}>{fmtFileSize(d.dimensione)}</span>
-              <span style={{ fontSize: 12, color: '#6C7F94' }}>{fmtDateTime(d.created_at)}</span>
-              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                <button onClick={() => handleDownload(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BRAND, padding: 4, display: 'flex' }} title="Scarica"><Download style={{ width: 13, height: 13 }} /></button>
-                <button onClick={() => setDeleteId(d.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 style={{ width: 13, height: 13 }} /></button>
-              </div>
+          {isMobile ? (
+            /* Mobile: card per documento */
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {docs.map((d, idx) => (
+                <div key={d.id} style={{ padding: '14px 16px', borderBottom: idx < docs.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <FileText style={{ width: 13, height: 13, color: '#6C7F94', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#9CA3AF', display: 'flex', gap: 10 }}>
+                        <span>{fmtFileSize(d.dimensione)}</span>
+                        <span>·</span>
+                        <span>{fmtDateTime(d.created_at)}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                      <button onClick={() => handleDownload(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BRAND, padding: 6, display: 'flex' }}><Download style={{ width: 14, height: 14 }} /></button>
+                      <button onClick={() => setDeleteId(d.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex' }}><Trash2 style={{ width: 14, height: 14 }} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            /* Desktop: table grid */
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.7fr 1fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
+                {['Nome', 'Tipo', 'Dimensione', 'Data', ''].map(h => (
+                  <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
+                ))}
+              </div>
+              {docs.map(d => (
+                <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.7fr 1fr 80px', padding: '12px 20px', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <FileText style={{ width: 14, height: 14, color: '#6C7F94' }} /> {d.nome}
+                  </div>
+                  <span style={{ fontSize: 12, color: '#6C7F94' }}>{d.tipo_file ?? '—'}</span>
+                  <span style={{ fontSize: 12, color: '#6C7F94' }}>{fmtFileSize(d.dimensione)}</span>
+                  <span style={{ fontSize: 12, color: '#6C7F94' }}>{fmtDateTime(d.created_at)}</span>
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <button onClick={() => handleDownload(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BRAND, padding: 4, display: 'flex' }} title="Scarica"><Download style={{ width: 13, height: 13 }} /></button>
+                    <button onClick={() => setDeleteId(d.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 style={{ width: 13, height: 13 }} /></button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </Card>
       )}
 
@@ -1282,6 +1368,7 @@ const emptyRicForm = (): SpesaRicorrente => ({
 const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
   progetto: Progetto; onSave: () => void; logActivity: (a: string, d?: string) => Promise<void>
 }) => {
+  const isMobile = useIsMobile()
   const progettoId = progetto.id
 
   /* ─ Una tantum state ─ */
@@ -1422,25 +1509,25 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── KPI ── */}
-      <Card style={{ padding: '16px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
+      <Card style={{ padding: isMobile ? '14px 16px' : '16px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 16 : 24 }}>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Costi ricorrenti / mese</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(costoRicMensile)}</div>
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{ricAttive.length} voci attive</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Costi ric. / mese</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(costoRicMensile)}</div>
+            <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{ricAttive.length} voci attive</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese una tantum totali</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalAll)}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese una tantum</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalAll)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese mese corrente</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalSpeseMese)}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese mese</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalSpeseMese)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margine mese</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: margineMese >= 0 ? '#1A2332' : '#DC2626', marginTop: 2 }}>{fmtEur(margineMese)}</div>
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>ricavo − spese − ricorrenti</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margine mese</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: margineMese >= 0 ? '#1A2332' : '#DC2626', marginTop: 2 }}>{fmtEur(margineMese)}</div>
+            <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>ric. − spese − ricorr.</div>
           </div>
         </div>
       </Card>
@@ -1516,10 +1603,10 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
 
       {/* ══════════════ SPESE UNA TANTUM ══════════════ */}
       <Card>
-        <div style={{ padding: '14px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ padding: isMobile ? '12px 14px' : '14px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#1A2332', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Spese una tantum</span>
-            <Select value={filterCat} onChange={e => setFilterCat(e.target.value as CategoriaSpesa | '')} style={{ width: 150, height: 28, fontSize: 11 }}>
+            <Select value={filterCat} onChange={e => setFilterCat(e.target.value as CategoriaSpesa | '')} style={{ flex: 1, minWidth: 120, height: 28, fontSize: 11 }}>
               <option value="">Tutte</option>
               {Object.entries(categoriaSpesaLabel).map(([val, lab]) => (
                 <option key={val} value={val}>{lab}</option>
@@ -1529,14 +1616,42 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
               <span style={{ fontSize: 11, color: '#6C7F94' }}>{filtered.length} — {fmtEur(totalFiltered)}</span>
             )}
           </div>
-          <Button size="sm" onClick={openNew}><Plus style={{ width: 12, height: 12 }} /> Nuova spesa</Button>
+          <Button size="sm" onClick={openNew} style={isMobile ? { width: '100%', justifyContent: 'center' } : {}}><Plus style={{ width: 12, height: 12 }} /> Nuova spesa</Button>
         </div>
 
         {filtered.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', fontSize: 12, color: '#9CA3AF' }}>
             {spese.length === 0 ? 'Nessuna spesa registrata.' : 'Nessuna spesa per questa categoria.'}
           </div>
+        ) : isMobile ? (
+          /* Mobile: card per spesa */
+          <>
+            {filtered.map((s, idx) => (
+              <div key={s.id} style={{ padding: '12px 14px', borderBottom: idx < filtered.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332', marginBottom: 2 }}>{s.descrizione}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', display: 'flex', gap: 8 }}>
+                      <span>{fmtDate(s.data)}</span>
+                      <span>·</span>
+                      <span>{categoriaSpesaLabel[s.categoria] ?? s.categoria}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#1A2332' }}>{fmtEur(s.importo)}</span>
+                    <button onClick={() => openEdit(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex' }}><Pencil style={{ width: 13, height: 13 }} /></button>
+                    <button onClick={() => setDeleteId(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex' }}><Trash2 style={{ width: 13, height: 13 }} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid #E5E7EB' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1A2332' }}>Totale</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1A2332' }}>{fmtEur(filterCat ? totalFiltered : totalAll)}</span>
+            </div>
+          </>
         ) : (
+          /* Desktop: table grid */
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 2fr 1fr 1fr 80px', padding: '8px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
               {['Data', 'Descrizione', 'Categoria', 'Importo', ''].map(h => (
@@ -1565,12 +1680,12 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
 
       {/* ── Modal spesa una tantum ── */}
       <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica spesa' : 'Nuova spesa'} width="520px">
-        <form onSubmit={saveSpesa} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <form onSubmit={saveSpesa} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {errors._form && <p style={{ fontSize: 12, color: '#DC2626' }}>{errors._form}</p>}
           <FormField label="Descrizione" required error={errors.descrizione}>
             <Input value={form.descrizione} onChange={sf('descrizione')} placeholder="Es. Licenza Cursor, Hosting Vercel..." maxLength={500} />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 12 }}>
             <FormField label="Importo (€)" required error={errors.importo}>
               <Input type="number" step="0.01" value={form.importo} onChange={sf('importo')} placeholder="0.00" />
             </FormField>
@@ -1581,9 +1696,11 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
                 ))}
               </Select>
             </FormField>
-            <FormField label="Data" required error={errors.data}>
-              <Input type="date" value={form.data} onChange={sf('data')} />
-            </FormField>
+            <div style={isMobile ? { gridColumn: '1 / -1' } : {}}>
+              <FormField label="Data" required error={errors.data}>
+                <Input type="date" value={form.data} onChange={sf('data')} />
+              </FormField>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
             <Button type="button" variant="ghost" onClick={() => setModal(false)}>Annulla</Button>
@@ -1598,7 +1715,7 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
           <FormField label="Descrizione" required>
             <Input value={ricForm.nome} onChange={e => setRicForm(p => ({ ...p, nome: e.target.value }))} maxLength={200} placeholder="Es. Hosting Vercel, Dominio, API OpenAI..." />
           </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             <FormField label="Importo (€)" required>
               <Input type="number" value={ricForm.importo || ''} onChange={e => setRicForm(p => ({ ...p, importo: Number(e.target.value) || 0 }))} min={0} step="0.01" placeholder="Es. 29.90" />
             </FormField>
@@ -1611,7 +1728,7 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
               </Select>
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             <FormField label="Categoria">
               <Select value={ricForm.categoria} onChange={e => setRicForm(p => ({ ...p, categoria: e.target.value as CategoriaSpesa }))}>
                 {Object.entries(categoriaSpesaLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -1657,6 +1774,7 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
    ════════════════════════════════════════ */
 
 const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave: () => void; logActivity: (a: string, d?: string) => Promise<void> }) => {
+  const isMobile = useIsMobile()
   const stored = progetto.team_membri as { members?: TeamMember[] } | null
   const [members, setMembers] = useState<TeamMember[]>(stored?.members ?? [])
   const [saving, setSaving] = useState(false)
@@ -1745,19 +1863,19 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
       )}
 
       {/* Status bar */}
-      <Card style={{ padding: '16px 24px', marginBottom: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24 }}>
+      <Card style={{ padding: isMobile ? '14px 16px' : '16px 24px', marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? 12 : 24 }}>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Membri attivi</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{activeMembers.length}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Attivi</div>
+            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{activeMembers.length}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Totale membri</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{members.length}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Totale</div>
+            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{members.length}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ruoli coperti</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{Object.keys(ruoliCount).length}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ruoli</div>
+            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{Object.keys(ruoliCount).length}</div>
           </div>
         </div>
       </Card>

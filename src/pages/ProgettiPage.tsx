@@ -10,6 +10,9 @@ import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { notifyProgettoPipelineAdvance } from '../lib/notifications'
+
+const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
 const statoBadge: Record<StatoProgetto, { label: string; color: 'green' | 'blue' | 'yellow' | 'gray' | 'orange' }> = {
   cliente_demo:   { label: 'Cliente Demo',   color: 'yellow' },
@@ -101,6 +104,22 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
       ? await supabase.from('progetti').update(result.data).eq('id', editing.id)
       : await supabase.from('progetti').insert(result.data)
     if (error) { setErrors({ _form: safeErrorMessage(error) }); setSaving(false); return }
+
+    // ── Notifica avanzamento pipeline ──────────────────────────────────────
+    if (editing && form.stato !== editing.stato) {
+      const clienteNome = clienti.find(c => c.id === form.cliente_id)?.nome ?? 'N/A'
+      notifyProgettoPipelineAdvance({
+        progettoNome: form.nome,
+        progettoId: editing.id,
+        statoPrecedente: editing.stato,
+        statoNuovo: form.stato,
+        cliente: clienteNome,
+        pagamentoMensile: form.pagamento_mensile,
+        adminEmail: ADMIN_EMAIL,
+      })
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     setSaving(false); setModal(false)
     await load()
   }

@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveCo
 import { useIsMobile } from '../hooks/useIsMobile'
 
 const BRAND = '#005DEF'
+const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
 /* ─── Types ─── */
 
@@ -160,12 +161,19 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [progetti, setProgetti] = useState<RecenteProgetto[]>([])
   const [taskUrgenti, setTaskUrgenti] = useState<TaskItem[]>([])
   const [taskProssimi, setTaskProssimi] = useState<TaskItem[]>([])
+  const [mieiTask, setMieiTask] = useState<TaskItem[]>([])
   const [eventi, setEventi] = useState<EventoItem[]>([])
   const [attivita, setAttivita] = useState<AttivitaItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const userEmail = user?.email ?? null
+      const adminFlag = userEmail === ADMIN_EMAIL
+      setIsAdmin(adminFlag)
+
       const oggi = new Date()
       const oggiISO = oggi.toISOString().split('T')[0]
       const fra7gg = new Date(oggi)
@@ -173,6 +181,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       const fra7ggISO = fra7gg.toISOString().split('T')[0]
 
       const inizioMese = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}-01`
+
+      const mieiTaskQuery = adminFlag
+        ? supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').order('scadenza', { ascending: true }).limit(20)
+        : supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').ilike('assegnatario', `%${userEmail}%`).order('scadenza', { ascending: true }).limit(20)
 
       const [
         { count: totalClienti },
@@ -185,6 +197,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         { data: eventiData },
         { data: attivitaData },
         { data: speseMeseData },
+        { data: mieiTaskData },
       ] = await Promise.all([
         supabase.from('clienti').select('*', { count: 'exact', head: true }),
         supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti'),
@@ -196,6 +209,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).order('data_inizio', { ascending: true }).limit(5),
         supabase.from('progetto_attivita').select('id, azione, dettaglio, created_at, progetti(nome)').order('created_at', { ascending: false }).limit(10),
         supabase.from('spese').select('importo').gte('data', inizioMese),
+        mieiTaskQuery,
       ])
 
       const pipeline: Record<StatoProgetto, number> = { cliente_demo: 0, demo_accettata: 0, firmato: 0, completato: 0, archiviato: 0 }
@@ -247,6 +261,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         id: t.id, titolo: t.titolo, scadenza: t.scadenza, priorita: t.priorita, progetto: t.progetti?.nome ?? null,
       })))
 
+      setMieiTask((mieiTaskData ?? []).map((t: any) => ({
+        id: t.id, titolo: t.titolo, scadenza: t.scadenza, priorita: t.priorita, progetto: t.progetti?.nome ?? null,
+      })))
+
       setEventi((eventiData ?? []).map((e: any) => ({
         id: e.id, titolo: e.titolo, data_inizio: e.data_inizio, ora_inizio: e.ora_inizio, tipo: e.tipo, colore: e.colore,
       })))
@@ -274,6 +292,88 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
 
   const taskBarData = (['todo', 'in_progress', 'in_review', 'done'] as StatoTask[])
     .map(s => ({ name: taskStatoLabel[s], value: stats.taskPerStato[s], fill: taskStatoColor[s] }))
+
+  /* ── Mobile layout ── */
+  if (isMobile) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Alert task scaduti */}
+      {stats.taskScaduti > 0 && (
+        <div
+          onClick={() => onNavigate('task')}
+          style={{ backgroundColor: '#FEF2F2', borderLeft: '3px solid #DC2626', padding: '10px 16px', cursor: 'pointer' }}
+        >
+          <span style={{ fontSize: 12, color: '#7F1D1D' }}>
+            <strong>{stats.taskScaduti}</strong> task {stats.taskScaduti === 1 ? 'scaduto' : 'scaduti'}
+          </span>
+        </div>
+      )}
+
+      {/* I miei task */}
+      <Section
+        title={isAdmin ? 'Tutti i task attivi' : 'I miei task'}
+        action={{ label: 'Tutti', onClick: () => onNavigate('task') }}
+      >
+        {mieiTask.length === 0
+          ? <Empty text={isAdmin ? 'Nessun task attivo' : 'Nessun task assegnato a te'} />
+          : mieiTask.map((t, i) => (
+            <div key={t.id} style={{ padding: '12px 16px', borderTop: i ? '1px solid #F3F4F6' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titolo}</div>
+                {t.progetto && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{t.progetto}</div>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: prioritaColor[t.priorita] ?? '#6B7280' }}>
+                  {t.priorita}
+                </span>
+                {t.scadenza && (
+                  <span style={{ fontSize: 11, color: daysUntil(t.scadenza) === 'Oggi' ? '#DC2626' : '#9CA3AF', fontVariantNumeric: 'tabular-nums' }}>
+                    {daysUntil(t.scadenza)}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        }
+      </Section>
+
+      {/* Progetti recenti */}
+      <Section title="Progetti recenti" action={{ label: 'Tutti', onClick: () => onNavigate('progetti') }}>
+        {progetti.length === 0
+          ? <Empty text="Nessun progetto" />
+          : progetti.slice(0, 5).map((p, i) => (
+            <div key={p.id} style={{ padding: '11px 16px', borderTop: i ? '1px solid #F3F4F6' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</div>
+                {p.cliente && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{p.cliente}</div>}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: pipelineColor[p.stato] === '#D1D5DB' ? '#6B7280' : pipelineColor[p.stato], flexShrink: 0, marginLeft: 8 }}>
+                {pipelineLabel[p.stato] ?? p.stato}
+              </span>
+            </div>
+          ))
+        }
+      </Section>
+
+      {/* Scadenze 7 giorni */}
+      <Section title="Scadenze prossimi 7 giorni" action={{ label: 'Task', onClick: () => onNavigate('task') }}>
+        {taskProssimi.length === 0
+          ? <Empty text="Nessuna scadenza" />
+          : taskProssimi.map((t, i) => (
+            <div key={t.id} style={{ padding: '11px 16px', borderTop: i ? '1px solid #F3F4F6' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titolo}</div>
+                {t.progetto && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{t.progetto}</div>}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 12, color: daysUntil(t.scadenza!) === 'Oggi' ? '#DC2626' : '#374151' }}>
+                {daysUntil(t.scadenza!)}
+              </span>
+            </div>
+          ))
+        }
+      </Section>
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

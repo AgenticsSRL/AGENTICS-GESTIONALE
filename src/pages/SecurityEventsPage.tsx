@@ -1,5 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { notifySecurityCritical } from '../lib/notifications'
+
+const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
 const BRAND = '#005DEF'
 
@@ -104,6 +107,19 @@ export const SecurityEventsPage = () => {
           setNewEventFlash(true)
           setTimeout(() => setNewEventFlash(false), 800)
           playAlert(newEvent.severity)
+          // Notifica email per eventi critical e high
+          if (newEvent.severity === 'critical' || newEvent.severity === 'high') {
+            notifySecurityCritical({
+              severity: newEvent.severity,
+              eventType: newEvent.event_type,
+              ip: newEvent.ip,
+              country: newEvent.country,
+              path: newEvent.path,
+              blocked: newEvent.blocked,
+              adminEmail: ADMIN_EMAIL,
+              rayId: newEvent.ray_id,
+            })
+          }
           if (live) {
             setTimeout(() => tableBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
           }
