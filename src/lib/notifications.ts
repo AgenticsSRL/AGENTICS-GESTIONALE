@@ -48,230 +48,213 @@ function esc(s: string): string {
 
 export function buildEmailHtml(p: EmailParams): string {
   return `<!doctype html>
-<html lang="it">
+<html lang="it" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <title>${esc(p.email_title)} - Agentics</title>
+  <title>${esc(p.email_title)} — Agentics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
   <style>
-    html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;background:#f4f7fb;}
+    html,body{margin:0!important;padding:0!important;width:100%!important;background:#ECEEF2;}
     *{box-sizing:border-box;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;}
     table,td{border-collapse:collapse!important;mso-table-lspace:0pt!important;mso-table-rspace:0pt!important;}
-    img{border:0;outline:none;text-decoration:none;display:block;max-width:100%;height:auto;}
+    img{border:0;outline:none;text-decoration:none;display:block;max-width:100%;height:auto;-ms-interpolation-mode:bicubic;}
     a{text-decoration:none;}
     a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;}
     #MessageViewBody a{color:inherit!important;text-decoration:none!important;}
-    @media screen and (max-width:620px){
+    @media screen and (max-width:600px){
       .container{width:100%!important;max-width:100%!important;}
-      .px{padding-left:16px!important;padding-right:16px!important;}
-      .pt{padding-top:22px!important;}
-      .pb{padding-bottom:22px!important;}
-      .logo-wrap{padding:24px 16px 18px!important;}
-      .hero-title{font-size:24px!important;line-height:1.2!important;}
-      .text{font-size:14px!important;line-height:1.7!important;}
+      .mob-px{padding-left:24px!important;padding-right:24px!important;}
+      .mob-title{font-size:21px!important;line-height:1.3!important;}
+      .mob-text{font-size:14px!important;}
       .stack,.stack td{display:block!important;width:100%!important;text-align:left!important;}
-      .stack td:last-child{padding-top:6px!important;}
-      .mobile-btn{display:block!important;width:100%!important;}
+      .stack td:last-child{padding-top:4px!important;}
+      .mob-btn{display:block!important;width:100%!important;text-align:center!important;}
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background:#f4f7fb;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f7fb;">
-    <tr>
-      <td align="center" style="padding:32px 12px;">
-        <table role="presentation" width="620" cellpadding="0" cellspacing="0" border="0" class="container" style="width:620px;max-width:620px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(17,24,39,0.08);">
+<body style="margin:0;padding:0;background:#ECEEF2;">
 
-          <!-- top accent -->
-          <tr><td style="height:6px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td></tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ECEEF2;">
+  <tr>
+    <td align="center" style="padding:40px 16px 48px;">
 
-          <!-- logo -->
-          <tr>
-            <td align="center" class="logo-wrap" style="padding:28px 24px 18px;background:#ffffff;">
-              <img src="https://tfrkdvnboioqufwgszpi.supabase.co/storage/v1/object/public/logo%20mail/Group%2010.png" alt="Agentics" width="152" style="width:152px;max-width:152px;height:auto;display:block;margin:0 auto;">
-            </td>
-          </tr>
+      <table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" class="container" style="width:580px;max-width:580px;">
 
-          <!-- badge hero -->
-          <tr>
-            <td class="px" style="padding:0 28px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#294CCA 0%,#355de8 100%);border-radius:16px;">
-                <tr>
-                  <td style="padding:22px 22px 20px;">
-                    <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#c7d2fe;">
-                      ${esc(p.notification_label)}
-                    </div>
-                    <div class="hero-title" style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:28px;line-height:1.18;font-weight:800;color:#ffffff;margin-top:8px;">
-                      ${esc(p.email_title)}
-                    </div>
-                    <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#dbe5ff;margin-top:12px;">
-                      ${esc(p.email_subtitle)}
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+        <!-- barra brand top -->
+        <tr><td style="height:4px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td></tr>
 
-          <!-- intro -->
-          <tr>
-            <td class="px pt" style="padding:28px 28px 12px;">
-              <div class="text" style="font-family:'DM Sans',Arial,Helvetica,sans-serif;color:#475569;font-size:15px;line-height:1.8;">
-                Ciao <strong style="color:#111827;">${esc(p.recipient_name)}</strong>,<br><br>
-                ${esc(p.intro_text)}
-              </div>
-            </td>
-          </tr>
+        <!-- logo + label — BIANCO -->
+        <tr>
+          <td style="background:#FFFFFF;padding:26px 36px 20px;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td valign="middle">
+                  <img src="https://tfrkdvnboioqufwgszpi.supabase.co/storage/v1/object/public/logo%20mail/Group%2010.png" alt="Agentics" width="128" style="width:128px;height:auto;display:block;">
+                </td>
+                <td align="right" valign="middle">
+                  <span style="display:inline-block;border:1px solid #E2E8F0;padding:4px 11px;font-family:'DM Sans',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#64748B;background:#F8FAFC;">
+                    ${esc(p.notification_label)}
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-          <!-- info card -->
-          <tr>
-            <td class="px" style="padding:12px 28px 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
-                <tr>
-                  <td style="padding:18px 18px 6px;">
-                    <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.9px;text-transform:uppercase;color:#64748b;">riepilogo rapido</div>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 18px 18px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <!-- titolo — BIANCO con bordo blu bottom -->
+        <tr>
+          <td class="mob-px" style="background:#FFFFFF;padding:20px 36px 28px;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;border-bottom:3px solid #294CCA;">
+            <div class="mob-title" style="font-family:'DM Sans',Arial,sans-serif;font-size:23px;font-weight:700;line-height:1.25;color:#0F172A;margin:0 0 6px;">
+              ${esc(p.email_title)}
+            </div>
+            <div style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#64748B;line-height:1.55;margin:0;">
+              ${esc(p.email_subtitle)}
+            </div>
+          </td>
+        </tr>
 
-                      <tr><td style="padding:14px 0;border-bottom:1px solid #e2e8f0;">
-                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
-                          <tr>
-                            <td style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Tipo aggiornamento</td>
-                            <td align="right" style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(p.update_type)}</td>
-                          </tr>
-                        </table>
-                      </td></tr>
+        <!-- body bianco -->
+        <tr>
+          <td style="background:#FFFFFF;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-                      <tr><td style="padding:14px 0;border-bottom:1px solid #e2e8f0;">
-                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
-                          <tr>
-                            <td style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Oggetto</td>
-                            <td align="right" style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(p.subject)}</td>
-                          </tr>
-                        </table>
-                      </td></tr>
+              <!-- saluto -->
+              <tr>
+                <td class="mob-px" style="padding:26px 36px 20px;border-bottom:1px solid #F1F5F9;">
+                  <p style="margin:0 0 4px;font-family:'DM Sans',Arial,sans-serif;font-size:15px;font-weight:400;color:#334155;">
+                    Ciao <strong style="font-weight:700;color:#0F172A;">${esc(p.recipient_name)}</strong>,
+                  </p>
+                  <p class="mob-text" style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:15px;color:#475569;line-height:1.75;">
+                    ${esc(p.intro_text)}
+                  </p>
+                </td>
+              </tr>
 
-                      <tr><td style="padding:14px 0;border-bottom:1px solid #e2e8f0;">
-                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
-                          <tr>
-                            <td style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Riferimento</td>
-                            <td align="right" style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(p.reference_code)}</td>
-                          </tr>
-                        </table>
-                      </td></tr>
+              <!-- tabella dati -->
+              <tr>
+                <td class="mob-px" style="padding:0 36px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-                      <tr><td style="padding:14px 0;border-bottom:1px solid #e2e8f0;">
-                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
-                          <tr>
-                            <td style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Data</td>
-                            <td align="right" style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(p.date)}</td>
-                          </tr>
-                        </table>
-                      </td></tr>
+                    <tr><td style="padding:14px 0;border-bottom:1px solid #F1F5F9;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack"><tr>
+                        <td style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Tipo</td>
+                        <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:600;color:#1E293B;">${esc(p.update_type)}</td>
+                      </tr></table>
+                    </td></tr>
 
-                      <tr><td style="padding:14px 0 6px;">
-                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
-                          <tr>
-                            <td style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Stato</td>
-                            <td align="right">
-                              <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#e8efff;font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:13px;color:#294CCA;font-weight:800;">
-                                ${esc(p.status)}
-                              </span>
-                            </td>
-                          </tr>
-                        </table>
-                      </td></tr>
+                    <tr><td style="padding:14px 0;border-bottom:1px solid #F1F5F9;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack"><tr>
+                        <td style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Oggetto</td>
+                        <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:600;color:#1E293B;">${esc(p.subject)}</td>
+                      </tr></table>
+                    </td></tr>
 
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+                    <tr><td style="padding:14px 0;border-bottom:1px solid #F1F5F9;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack"><tr>
+                        <td style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Riferimento</td>
+                        <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:600;color:#1E293B;">${esc(p.reference_code)}</td>
+                      </tr></table>
+                    </td></tr>
 
-          <!-- message body -->
-          <tr>
-            <td class="px" style="padding:20px 28px 0;">
-              <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.9px;text-transform:uppercase;color:#64748b;margin-bottom:10px;">messaggio</div>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;">
-                <tr>
-                  <td style="padding:20px 18px;">
-                    <div class="text" style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:15px;line-height:1.85;color:#334155;">
-                      ${p.message_body}
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+                    <tr><td style="padding:14px 0;border-bottom:1px solid #F1F5F9;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack"><tr>
+                        <td style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Data</td>
+                        <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:600;color:#1E293B;">${esc(p.date)}</td>
+                      </tr></table>
+                    </td></tr>
 
-          <!-- next steps -->
-          <tr>
-            <td class="px" style="padding:18px 28px 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fbff;border:1px solid #dbe7ff;border-radius:16px;">
-                <tr>
-                  <td style="padding:18px;">
-                    <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;color:#111827;font-weight:800;margin-bottom:6px;">Cosa puoi fare adesso</div>
-                    <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;color:#475569;line-height:1.75;">${esc(p.next_steps)}</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+                    <tr><td style="padding:14px 0;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack"><tr>
+                        <td style="font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Stato</td>
+                        <td align="right">
+                          <span style="display:inline-block;padding:3px 10px;background:#EFF6FF;border:1px solid #BFDBFE;font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#1D4ED8;">
+                            ${esc(p.status)}
+                          </span>
+                        </td>
+                      </tr></table>
+                    </td></tr>
 
-          <!-- CTA -->
-          <tr>
-            <td class="px" style="padding:24px 28px 0;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td bgcolor="#294CCA" style="border-radius:12px;">
-                    <a href="${p.cta_url}" target="_blank" class="mobile-btn" style="display:inline-block;padding:15px 24px;font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;font-weight:800;color:#ffffff;border-radius:12px;background:#294CCA;">
-                      ${esc(p.cta_label)}
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+                  </table>
+                </td>
+              </tr>
 
-          <!-- secondary note -->
-          <tr>
-            <td class="px" style="padding:16px 28px 0;">
-              <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;color:#64748b;">${esc(p.secondary_note)}</div>
-            </td>
-          </tr>
+              <!-- dettaglio -->
+              <tr>
+                <td style="border-top:1px solid #F1F5F9;border-bottom:1px solid #F1F5F9;background:#F8FAFC;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="width:3px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td>
+                      <td class="mob-px" style="padding:22px 28px;">
+                        <p style="margin:0 0 8px;font-family:'DM Sans',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:#94A3B8;">Dettaglio</p>
+                        <div class="mob-text" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;line-height:1.8;color:#334155;">
+                          ${p.message_body}
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
 
-          <!-- divider -->
-          <tr>
-            <td class="px" style="padding:24px 28px 0;">
-              <div style="height:1px;background:#e2e8f0;"></div>
-            </td>
-          </tr>
+              <!-- prossimi passi -->
+              <tr>
+                <td class="mob-px" style="padding:22px 36px;border-bottom:1px solid #F1F5F9;">
+                  <p style="margin:0 0 8px;font-family:'DM Sans',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:#94A3B8;">Prossimi passi</p>
+                  <p class="mob-text" style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#475569;line-height:1.75;">${esc(p.next_steps)}</p>
+                </td>
+              </tr>
 
-          <!-- footer -->
-          <tr>
-            <td class="px pb" style="padding:18px 28px 28px;">
-              <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:14px;color:#111827;font-weight:800;">Agentics</div>
-              <div style="font-family:'DM Sans',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.7;color:#94a3b8;margin-top:6px;">
-                Notifica inviata automaticamente dal gestionale.<br>
-                ${esc(p.footer_text)}
-              </div>
-            </td>
-          </tr>
+              <!-- CTA -->
+              <tr>
+                <td class="mob-px" style="padding:24px 36px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="background:#294CCA;">
+                        <a href="${p.cta_url}" target="_blank" class="mob-btn" style="display:inline-block;padding:12px 26px;font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:700;color:#FFFFFF;letter-spacing:0.3px;background:#294CCA;text-decoration:none;">
+                          ${esc(p.cta_label)}
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  ${p.secondary_note ? `<p style="margin:12px 0 0;font-family:'DM Sans',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.6;">${esc(p.secondary_note)}</p>` : ''}
+                </td>
+              </tr>
 
-          <!-- bottom accent -->
-          <tr><td style="height:6px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td></tr>
+            </table>
+          </td>
+        </tr>
 
-        </table>
-      </td>
-    </tr>
-  </table>
+        <!-- footer -->
+        <tr>
+          <td style="background:#F8FAFC;border:1px solid #E2E8F0;border-top:none;padding:18px 36px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td>
+                  <p style="margin:0 0 2px;font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:700;color:#1E293B;">Agentics</p>
+                  <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:11px;color:#94A3B8;line-height:1.6;">
+                    Notifica automatica dal gestionale — ${esc(p.footer_text)}
+                  </p>
+                </td>
+                <td align="right" valign="middle">
+                  <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:11px;color:#CBD5E1;letter-spacing:0.3px;">agentics.eu</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- barra brand bottom -->
+        <tr><td style="height:4px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td></tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
 </body>
 </html>`
 }
@@ -430,6 +413,40 @@ export async function notifyTaskCompletato(opts: {
       cta_label: 'Vai ai Task →',
       secondary_note: 'Il task è stato completato e rimosso dalla coda attiva.',
       footer_text: 'Notifica automatica — gestionale Agentics.',
+    },
+  })
+}
+
+export async function notifyTaskPartecipanteAggiunto(opts: {
+  taskTitolo: string
+  taskId: string
+  progetto: string
+  priorita: string
+  scadenza: string | null
+  partecipanteEmail: string
+  partecipanteNome: string
+}) {
+  const prioritaLabel: Record<string, string> = { bassa: 'Bassa', media: 'Media', alta: 'Alta', urgente: 'URGENTE' }
+  await sendNotification({
+    to: [opts.partecipanteEmail],
+    subject: `Sei stato aggiunto al task: ${opts.taskTitolo}`,
+    params: {
+      notification_label: 'NOTIFICA TASK',
+      email_title: 'Aggiunto a un task',
+      email_subtitle: 'Sei stato aggiunto come partecipante',
+      recipient_name: opts.partecipanteNome,
+      intro_text: `Sei stato aggiunto come partecipante al task "${opts.taskTitolo}" sul progetto ${opts.progetto}.`,
+      update_type: 'Partecipante Aggiunto',
+      subject: opts.taskTitolo,
+      reference_code: `Progetto: ${opts.progetto}`,
+      date: today(),
+      status: prioritaLabel[opts.priorita] ?? opts.priorita,
+      message_body: `Sei stato aggiunto come partecipante al task <strong>${esc(opts.taskTitolo)}</strong> sul progetto <strong>${esc(opts.progetto)}</strong>.<br><br>Priorità: <strong>${prioritaLabel[opts.priorita] ?? opts.priorita}</strong>${opts.scadenza ? `<br>Scadenza: <strong>${fmtDate(opts.scadenza)}</strong>` : ''}`,
+      next_steps: 'Accedi al gestionale per visualizzare i dettagli del task e iniziare a collaborare.',
+      cta_url: `${APP_URL}/task`,
+      cta_label: 'Vai ai Task →',
+      secondary_note: opts.scadenza ? `Scadenza: ${fmtDate(opts.scadenza)}.` : '',
+      footer_text: 'Ricevi questa email perché sei stato aggiunto a un task nel gestionale Agentics.',
     },
   })
 }

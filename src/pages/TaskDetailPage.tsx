@@ -1,16 +1,17 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   ArrowLeft, Pencil, Trash2, Send, Plus, X,
-  CheckSquare, Calendar, User, FolderOpen, Tag, Clock,
+  CheckSquare, Calendar, User, FolderOpen, Tag, Clock, Users,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { taskSchema, validate, type ValidationErrors } from '../lib/validation'
 import { safeErrorMessage } from '../lib/errors'
-import type { Task, Progetto, StatoTask, PrioritaTask, CategoriaTask, TaskCommento } from '../types'
+import type { Task, Progetto, StatoTask, PrioritaTask, CategoriaTask, TaskCommento, OrgMember } from '../types'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { UserPicker } from '../components/ui/UserPicker'
 
 const BRAND = '#005DEF'
 
@@ -108,9 +109,10 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
   const [task, setTask] = useState<Task | null>(null)
   const [loading, setLoading] = useState(true)
   const [progetti, setProgetti] = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([])
 
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState<Form>({ progetto_id: null, titolo: '', descrizione: null, stato: 'todo', priorita: 'media', scadenza: null, categoria: null, assegnatario: null, dipendenza_id: null, checklist: [], commenti: [] })
+  const [form, setForm] = useState<Form>({ progetto_id: null, titolo: '', descrizione: null, stato: 'todo', priorita: 'media', scadenza: null, categoria: null, assegnatario: null, dipendenza_id: null, checklist: [], commenti: [], partecipanti: [] })
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<ValidationErrors>({})
 
@@ -132,6 +134,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
   useEffect(() => {
     loadTask()
     supabase.from('progetti').select('id, nome').in('stato', ['cliente_demo', 'demo_accettata', 'firmato']).order('nome').then(({ data }) => setProgetti(data ?? []))
+    supabase.rpc('get_org_members').then(({ data }) => setOrgMembers(data ?? []))
   }, [loadTask])
 
   const openEdit = () => {
@@ -141,6 +144,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
       stato: task.stato, priorita: task.priorita, scadenza: task.scadenza,
       categoria: task.categoria, assegnatario: task.assegnatario,
       dipendenza_id: task.dipendenza_id, checklist: task.checklist ?? [], commenti: task.commenti ?? [],
+      partecipanti: task.partecipanti ?? [],
     })
     setErrors({})
     setModal(true)
@@ -296,6 +300,21 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
               <InfoRow icon={<Clock style={{ width: 14, height: 14 }} />} label="Creato il">
                 <span style={{ fontSize: 13, color: '#4B5563' }}>{fmtDateTime(task.created_at)}</span>
               </InfoRow>
+              {(task.partecipanti ?? []).length > 0 && (
+                <InfoRow icon={<Users style={{ width: 14, height: 14 }} />} label="Partecipanti">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {(task.partecipanti ?? []).map(email => {
+                      const m = orgMembers.find(o => o.email === email)
+                      const label = m ? ([m.nome, m.cognome].filter(Boolean).join(' ') || email) : email
+                      return (
+                        <span key={email} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 3, padding: '2px 8px', fontSize: 11, fontWeight: 600, color: '#005DEF' }}>
+                          {label}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </InfoRow>
+              )}
             </div>
           </div>
 
@@ -442,9 +461,23 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
               </Select>
             </FormField>
             <FormField label="Assegnatario">
-              <Input value={form.assegnatario ?? ''} onChange={f('assegnatario')} placeholder="Nome assegnatario" maxLength={100} />
+              <UserPicker
+                single
+                members={orgMembers}
+                value={form.assegnatario ? [form.assegnatario] : []}
+                onChange={emails => setForm(p => ({ ...p, assegnatario: emails[0] ?? null }))}
+                placeholder="Seleziona assegnatario..."
+              />
             </FormField>
           </div>
+          <FormField label="Partecipanti">
+            <UserPicker
+              members={orgMembers}
+              value={form.partecipanti ?? []}
+              onChange={emails => setForm(p => ({ ...p, partecipanti: emails }))}
+              placeholder="Aggiungi persone al task..."
+            />
+          </FormField>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
             <Button type="button" variant="ghost" onClick={() => setModal(false)}>Annulla</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Salvataggio...' : 'Salva'}</Button>

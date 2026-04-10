@@ -3,18 +3,20 @@ import { Plus, Pencil, Trash2, CheckSquare } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { taskSchema, validate, type ValidationErrors } from '../lib/validation'
 import { safeErrorMessage } from '../lib/errors'
-import type { Task, Progetto, StatoTask, PrioritaTask } from '../types'
+import type { Task, Progetto, StatoTask, PrioritaTask, OrgMember } from '../types'
 import { Button }     from '../components/ui/Button'
 import { Badge }      from '../components/ui/Badge'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { UserPicker } from '../components/ui/UserPicker'
 import { useIsMobile } from '../hooks/useIsMobile'
 import {
   notifyTaskAssegnato,
   notifyTaskUrgente,
   notifyTaskInReview,
   notifyTaskCompletato,
+  notifyTaskPartecipanteAggiunto,
 } from '../lib/notifications'
 
 const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
@@ -35,7 +37,7 @@ const prioritaBadge: Record<PrioritaTask, { label: string; color: 'green' | 'yel
 
 type Form = Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'progetti'>
 
-const empty: Form = { progetto_id: null, titolo: '', descrizione: null, stato: 'todo', priorita: 'media', scadenza: null, categoria: null, assegnatario: null, dipendenza_id: null, checklist: [], commenti: [] }
+const empty: Form = { progetto_id: null, titolo: '', descrizione: null, stato: 'todo', priorita: 'media', scadenza: null, categoria: null, assegnatario: null, dipendenza_id: null, checklist: [], commenti: [], partecipanti: [] }
 
 interface TaskPageProps {
   onViewTask?: (id: string) => void
@@ -45,6 +47,7 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
   const isMobile = useIsMobile()
   const [rows, setRows]           = useState<Task[]>([])
   const [progetti, setProgetti]   = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([])
   const [loading, setLoading]     = useState(true)
   const [modal, setModal]         = useState(false)
   const [editing, setEditing]     = useState<Task | null>(null)
@@ -54,13 +57,15 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
   const [errors, setErrors]       = useState<ValidationErrors>({})
 
   const load = async () => {
-    const [{ data, error }, { data: proj }] = await Promise.all([
+    const [{ data, error }, { data: proj }, { data: members }] = await Promise.all([
       supabase.from('task').select('*, progetti(nome)').order('created_at', { ascending: false }),
       supabase.from('progetti').select('id, nome').in('stato', ['cliente_demo', 'demo_accettata', 'firmato']).order('nome'),
+      supabase.rpc('get_org_members'),
     ])
     if (error) { console.error(safeErrorMessage(error)); return }
     setRows(data ?? [])
     setProgetti(proj ?? [])
+    setOrgMembers(members ?? [])
     setLoading(false)
   }
 
@@ -69,7 +74,7 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
   const openNew = () => { setEditing(null); setForm({ ...empty }); setErrors({}); setModal(true) }
   const openEdit = (t: Task) => {
     setEditing(t)
-    setForm({ progetto_id: t.progetto_id, titolo: t.titolo, descrizione: t.descrizione, stato: t.stato, priorita: t.priorita, scadenza: t.scadenza, categoria: t.categoria, assegnatario: t.assegnatario, dipendenza_id: t.dipendenza_id, checklist: t.checklist ?? [], commenti: t.commenti ?? [] })
+    setForm({ progetto_id: t.progetto_id, titolo: t.titolo, descrizione: t.descrizione, stato: t.stato, priorita: t.priorita, scadenza: t.scadenza, categoria: t.categoria, assegnatario: t.assegnatario, dipendenza_id: t.dipendenza_id, checklist: t.checklist ?? [], commenti: t.commenti ?? [], partecipanti: t.partecipanti ?? [] })
     setErrors({}); setModal(true)
   }
 
@@ -89,6 +94,11 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
     const currentEmail = user?.email ?? ADMIN_EMAIL
     const progettoNome = progetti.find(p => p.id === form.progetto_id)?.nome ?? 'N/A'
 
+    const memberName = (email: string) => {
+      const m = orgMembers.find(o => o.email === email)
+      return m ? [m.nome, m.cognome].filter(Boolean).join(' ') || email.split('@')[0] : email.split('@')[0]
+    }
+
     if (!editing) {
       // Nuovo task: notifica assegnatario se diverso dall'utente corrente
       if (form.assegnatario && form.assegnatario !== currentEmail) {
@@ -99,8 +109,22 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
           priorita: form.priorita,
           scadenza: form.scadenza,
           assegnatarioEmail: form.assegnatario,
-          assegnatarioNome: form.assegnatario.split('@')[0],
+          assegnatarioNome: memberName(form.assegnatario),
         })
+      }
+      // Notifica partecipanti
+      for (const email of form.partecipanti ?? []) {
+        if (email !== currentEmail && email !== form.assegnatario) {
+          notifyTaskPartecipanteAggiunto({
+            taskTitolo: form.titolo,
+            taskId: '',
+            progetto: progettoNome,
+            priorita: form.priorita,
+            scadenza: form.scadenza,
+            partecipanteEmail: email,
+            partecipanteNome: memberName(email),
+          })
+        }
       }
       // Nuovo task urgente: avvisa assegnatario + admin
       if (form.priorita === 'urgente') {
@@ -109,7 +133,7 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
           progetto: progettoNome,
           scadenza: form.scadenza,
           assegnatarioEmail: form.assegnatario ?? ADMIN_EMAIL,
-          assegnatarioNome: (form.assegnatario ?? ADMIN_EMAIL).split('@')[0],
+          assegnatarioNome: memberName(form.assegnatario ?? ADMIN_EMAIL),
           adminEmail: ADMIN_EMAIL,
         })
       }
@@ -124,8 +148,24 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
           priorita: form.priorita,
           scadenza: form.scadenza,
           assegnatarioEmail: form.assegnatario,
-          assegnatarioNome: form.assegnatario.split('@')[0],
+          assegnatarioNome: memberName(form.assegnatario),
         })
+      }
+      // Notifica nuovi partecipanti aggiunti
+      const vecchiPartecipanti = editing.partecipanti ?? []
+      const nuoviPartecipanti = (form.partecipanti ?? []).filter(e => !vecchiPartecipanti.includes(e))
+      for (const email of nuoviPartecipanti) {
+        if (email !== currentEmail) {
+          notifyTaskPartecipanteAggiunto({
+            taskTitolo: form.titolo,
+            taskId: editing.id,
+            progetto: progettoNome,
+            priorita: form.priorita,
+            scadenza: form.scadenza,
+            partecipanteEmail: email,
+            partecipanteNome: memberName(email),
+          })
+        }
       }
       if (form.stato === 'in_review' && editing.stato !== 'in_review') {
         notifyTaskInReview({
@@ -137,14 +177,13 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
         })
       }
       if (form.stato === 'done' && editing.stato !== 'done') {
-        // Notifica chi ha assegnato il task (admin se diverso dall'assegnatario)
         const notificaEmail = form.assegnatario !== currentEmail ? ADMIN_EMAIL : (editing.assegnatario ?? ADMIN_EMAIL)
         notifyTaskCompletato({
           taskTitolo: form.titolo,
           progetto: progettoNome,
           assegnatarioEmail: form.assegnatario ?? currentEmail,
           notificaEmail,
-          notificaNome: notificaEmail === ADMIN_EMAIL ? 'Lorenzo' : notificaEmail.split('@')[0],
+          notificaNome: notificaEmail === ADMIN_EMAIL ? 'Lorenzo' : memberName(notificaEmail),
         })
       }
     }
@@ -245,6 +284,25 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
             </FormField>
             <FormField label="Scadenza">
               <Input type="date" value={form.scadenza ?? ''} onChange={f('scadenza')} />
+            </FormField>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+            <FormField label="Assegnatario">
+              <UserPicker
+                single
+                members={orgMembers}
+                value={form.assegnatario ? [form.assegnatario] : []}
+                onChange={emails => setForm(p => ({ ...p, assegnatario: emails[0] ?? null }))}
+                placeholder="Seleziona assegnatario..."
+              />
+            </FormField>
+            <FormField label="Partecipanti">
+              <UserPicker
+                members={orgMembers}
+                value={form.partecipanti ?? []}
+                onChange={emails => setForm(p => ({ ...p, partecipanti: emails }))}
+                placeholder="Aggiungi persone..."
+              />
             </FormField>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>

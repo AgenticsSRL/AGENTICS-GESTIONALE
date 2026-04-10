@@ -72,6 +72,7 @@ function buildReminderHtml(opts: {
   recipientNome: string
 }): string {
   const giorni = opts.giorniMancanti === 1 ? 'domani' : `tra ${opts.giorniMancanti} giorni`
+  const giorniLabel = opts.giorniMancanti === 1 ? '1 GIORNO' : `${opts.giorniMancanti} GIORNI`
   const tipoLabel: Record<string, string> = {
     appuntamento: 'Appuntamento',
     meeting: 'Meeting',
@@ -81,192 +82,205 @@ function buildReminderHtml(opts: {
   }
 
   return `<!doctype html>
-<html lang="it">
+<html lang="it" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Promemoria: ${esc(opts.titolo)} - Agentics</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>Promemoria: ${esc(opts.titolo)} — Agentics</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    html,body{margin:0!important;padding:0!important;width:100%!important;background:#f4f7fb;}
-    *{box-sizing:border-box;}
-    table,td{border-collapse:collapse!important;}
-    img{border:0;display:block;max-width:100%;}
+    html,body{margin:0!important;padding:0!important;width:100%!important;background:#F0F2F5;}
+    *{box-sizing:border-box;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;}
+    table,td{border-collapse:collapse!important;mso-table-lspace:0pt!important;mso-table-rspace:0pt!important;}
+    img{border:0;outline:none;text-decoration:none;display:block;max-width:100%;height:auto;}
     a{text-decoration:none;}
-    @media screen and (max-width:620px){
+    @media screen and (max-width:600px){
       .container{width:100%!important;}
-      .px{padding-left:16px!important;padding-right:16px!important;}
-      .hero-title{font-size:24px!important;}
+      .mob-px{padding-left:20px!important;padding-right:20px!important;}
+      .mob-title{font-size:22px!important;}
+      .stack,.stack td{display:block!important;width:100%!important;text-align:left!important;}
+      .stack td:last-child{padding-top:4px!important;}
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background:#f4f7fb;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f7fb;">
-    <tr>
-      <td align="center" style="padding:32px 12px;">
-        <table role="presentation" width="620" cellpadding="0" cellspacing="0" border="0" class="container" style="width:620px;max-width:620px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(17,24,39,0.08);">
+<body style="margin:0;padding:0;background:#F0F2F5;">
 
-          <tr><td style="height:6px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td></tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F0F2F5;">
+  <tr>
+    <td align="center" style="padding:40px 16px 48px;">
 
-          <tr>
-            <td align="center" style="padding:28px 24px 18px;">
-              <img src="https://tfrkdvnboioqufwgszpi.supabase.co/storage/v1/object/public/logo%20mail/Group%2010.png" alt="Agentics" width="152" style="width:152px;height:auto;margin:0 auto;">
-            </td>
-          </tr>
+      <table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" class="container" style="width:580px;max-width:580px;">
 
-          <tr>
-            <td class="px" style="padding:0 28px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#294CCA 0%,#355de8 100%);border-radius:16px;">
-                <tr>
-                  <td style="padding:22px 22px 20px;">
-                    <div style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#c7d2fe;">
-                      PROMEMORIA CALENDARIO — ${opts.giorniMancanti === 1 ? '1 GIORNO' : `${opts.giorniMancanti} GIORNI`}
-                    </div>
-                    <div class="hero-title" style="font-family:'DM Sans',Arial,sans-serif;font-size:28px;line-height:1.18;font-weight:800;color:#ffffff;margin-top:8px;">
-                      ${opts.giorniMancanti === 1 ? 'Domani hai un evento!' : `Evento ${giorni}`}
-                    </div>
-                    <div style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;line-height:1.7;color:#dbe5ff;margin-top:12px;">
-                      ${esc(opts.titolo)}
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+        <!-- HEADER DARK -->
+        <tr>
+          <td style="background:#111827;padding:0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr><td style="height:3px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td></tr>
+              <tr>
+                <td style="padding:28px 36px 24px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td>
+                        <img src="https://tfrkdvnboioqufwgszpi.supabase.co/storage/v1/object/public/logo%20mail/Group%2010.png" alt="Agentics" width="130" style="width:130px;height:auto;display:block;">
+                      </td>
+                      <td align="right" valign="middle">
+                        <span style="display:inline-block;background:#1E293B;border:1px solid #334155;padding:5px 12px;font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.7px;text-transform:uppercase;color:#94A3B8;">
+                          PROMEMORIA — ${giorniLabel}
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td class="mob-px" style="padding:0 36px 32px;">
+                  <div class="mob-title" style="font-family:'DM Sans',Arial,sans-serif;font-size:26px;font-weight:700;line-height:1.2;color:#FFFFFF;margin:0 0 10px;">
+                    ${opts.giorniMancanti === 1 ? 'Domani hai un evento' : `Evento ${giorni}`}
+                  </div>
+                  <div style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:400;color:#64748B;line-height:1.5;margin:0;">
+                    ${esc(opts.titolo)}
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-          <tr>
-            <td class="px" style="padding:28px 28px 12px;">
-              <div style="font-family:'DM Sans',Arial,sans-serif;color:#475569;font-size:15px;line-height:1.8;">
-                Ciao <strong style="color:#111827;">${esc(opts.recipientNome)}</strong>,<br><br>
-                Questo è un promemoria automatico per l'evento in programma <strong>${esc(giorni)}</strong>.
-              </div>
-            </td>
-          </tr>
+        <!-- BODY -->
+        <tr>
+          <td style="background:#FFFFFF;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-          <tr>
-            <td class="px" style="padding:12px 28px 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
-                <tr><td style="padding:18px 18px 6px;">
-                  <div style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.9px;text-transform:uppercase;color:#64748b;">dettagli evento</div>
-                </td></tr>
-                <tr><td style="padding:0 18px 18px;">
+              <!-- saluto -->
+              <tr>
+                <td class="mob-px" style="padding:32px 36px 24px;border-bottom:1px solid #F1F5F9;">
+                  <p style="margin:0 0 4px;font-family:'DM Sans',Arial,sans-serif;font-size:15px;font-weight:500;color:#1E293B;">
+                    Ciao <strong style="font-weight:700;">${esc(opts.recipientNome)}</strong>,
+                  </p>
+                  <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:15px;color:#475569;line-height:1.75;">
+                    Promemoria automatico per l'evento in programma <strong style="color:#1E293B;">${esc(giorni)}</strong>.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- dettagli evento -->
+              <tr>
+                <td class="mob-px" style="padding:0 36px;">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-                    <tr><td style="padding:12px 0;border-bottom:1px solid #e2e8f0;">
-                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr><td style="padding:16px 0;border-bottom:1px solid #F1F5F9;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
                         <tr>
-                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Evento</td>
-                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(opts.titolo)}</td>
+                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Evento</td>
+                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#1E293B;">${esc(opts.titolo)}</td>
                         </tr>
                       </table>
                     </td></tr>
 
-                    <tr><td style="padding:12px 0;border-bottom:1px solid #e2e8f0;">
-                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr><td style="padding:16px 0;border-bottom:1px solid #F1F5F9;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
                         <tr>
-                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Data</td>
-                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(opts.data)}</td>
+                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Data</td>
+                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#1E293B;">${esc(opts.data)}</td>
                         </tr>
                       </table>
                     </td></tr>
 
-                    <tr><td style="padding:12px 0;border-bottom:1px solid #e2e8f0;">
-                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr><td style="padding:16px 0;border-bottom:1px solid #F1F5F9;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
                         <tr>
-                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Orario</td>
-                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(opts.oraInizio)} – ${esc(opts.oraFine)}</td>
+                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Orario</td>
+                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#1E293B;">${esc(opts.oraInizio)} – ${esc(opts.oraFine)}</td>
                         </tr>
                       </table>
                     </td></tr>
 
-                    <tr><td style="padding:12px 0;border-bottom:1px solid #e2e8f0;">
-                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr><td style="padding:16px 0;${opts.luogo ? 'border-bottom:1px solid #F1F5F9;' : ''}">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
                         <tr>
-                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Tipo</td>
-                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(tipoLabel[opts.tipo] ?? opts.tipo)}</td>
-                        </tr>
-                      </table>
-                    </td></tr>
-
-                    ${opts.luogo ? `
-                    <tr><td style="padding:12px 0 6px;">
-                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                        <tr>
-                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Luogo</td>
-                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#111827;font-weight:700;">${esc(opts.luogo)}</td>
-                        </tr>
-                      </table>
-                    </td></tr>` : ''}
-
-                    <tr><td style="padding:12px 0 6px;">
-                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                        <tr>
-                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:13px;color:#64748b;font-weight:600;">Quando</td>
+                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Tipo</td>
                           <td align="right">
-                            <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#e8efff;font-family:'DM Sans',Arial,sans-serif;font-size:13px;color:#294CCA;font-weight:800;">
-                              ${esc(giorni.charAt(0).toUpperCase() + giorni.slice(1))}
+                            <span style="display:inline-block;padding:4px 12px;background:#EFF6FF;border:1px solid #BFDBFE;font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.3px;color:#1D4ED8;">
+                              ${esc(tipoLabel[opts.tipo] ?? opts.tipo)}
                             </span>
                           </td>
                         </tr>
                       </table>
                     </td></tr>
 
+                    ${opts.luogo ? `
+                    <tr><td style="padding:16px 0;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stack">
+                        <tr>
+                          <td style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:#94A3B8;white-space:nowrap;">Luogo</td>
+                          <td align="right" style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#1E293B;">${esc(opts.luogo)}</td>
+                        </tr>
+                      </table>
+                    </td></tr>` : ''}
+
                   </table>
-                </td></tr>
-              </table>
-            </td>
-          </tr>
+                </td>
+              </tr>
 
-          ${opts.descrizione ? `
-          <tr>
-            <td class="px" style="padding:18px 28px 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;">
-                <tr>
-                  <td style="padding:18px;">
-                    <div style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.9px;text-transform:uppercase;color:#64748b;margin-bottom:8px;">note</div>
-                    <div style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#334155;line-height:1.7;">${esc(opts.descrizione)}</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>` : ''}
+              ${opts.descrizione ? `
+              <!-- note -->
+              <tr>
+                <td style="border-top:1px solid #F1F5F9;border-bottom:1px solid #F1F5F9;background:#F8FAFC;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="width:4px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td>
+                      <td class="mob-px" style="padding:20px 28px;">
+                        <p style="margin:0 0 4px;font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.7px;text-transform:uppercase;color:#94A3B8;">Note</p>
+                        <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#334155;line-height:1.75;">${esc(opts.descrizione)}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>` : ''}
 
-          <tr>
-            <td class="px" style="padding:24px 28px 0;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td bgcolor="#294CCA" style="border-radius:12px;">
-                    <a href="${APP_URL}/calendario" target="_blank" style="display:inline-block;padding:15px 24px;font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:800;color:#ffffff;border-radius:12px;background:#294CCA;">
-                      Apri il Calendario →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+              <!-- CTA -->
+              <tr>
+                <td class="mob-px" style="padding:28px 36px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="background:#294CCA;">
+                        <a href="${APP_URL}/calendario" target="_blank" style="display:inline-block;padding:13px 28px;font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:700;color:#FFFFFF;letter-spacing:0.2px;background:#294CCA;text-decoration:none;">
+                          Apri il Calendario
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
 
-          <tr>
-            <td class="px" style="padding:24px 28px 0;">
-              <div style="height:1px;background:#e2e8f0;"></div>
-            </td>
-          </tr>
+            </table>
+          </td>
+        </tr>
 
-          <tr>
-            <td class="px" style="padding:18px 28px 28px;">
-              <div style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#111827;font-weight:800;">Agentics</div>
-              <div style="font-family:'DM Sans',Arial,sans-serif;font-size:12px;line-height:1.7;color:#94a3b8;margin-top:6px;">
-                Promemoria inviato automaticamente dal gestionale.<br>
-                Ricevi questa email perché sei registrato come partecipante all'evento.
-              </div>
-            </td>
-          </tr>
+        <!-- FOOTER -->
+        <tr>
+          <td style="background:#F8FAFC;border:1px solid #E2E8F0;border-top:none;padding:24px 36px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td>
+                  <p style="margin:0 0 4px;font-family:'DM Sans',Arial,sans-serif;font-size:13px;font-weight:700;color:#1E293B;">Agentics</p>
+                  <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:12px;color:#94A3B8;line-height:1.6;">
+                    Promemoria automatico — ricevi questa email perché sei associato all'evento.
+                  </p>
+                </td>
+                <td align="right" valign="top">
+                  <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:11px;color:#CBD5E1;">agentics.eu</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-          <tr><td style="height:6px;background:#294CCA;font-size:0;line-height:0;">&nbsp;</td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
-        </table>
-      </td>
-    </tr>
-  </table>
 </body>
 </html>`
 }

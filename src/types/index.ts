@@ -133,6 +133,14 @@ export interface TaskCommento {
   timestamp: string
 }
 
+export interface OrgMember {
+  id: string
+  email: string
+  nome: string | null
+  cognome: string | null
+  ruolo: string | null
+}
+
 export interface Task {
   id: string
   user_id: string
@@ -147,6 +155,7 @@ export interface Task {
   dipendenza_id: string | null
   checklist: ChecklistItem[]
   commenti: TaskCommento[]
+  partecipanti: string[]
   created_at: string
   updated_at: string
   // join
