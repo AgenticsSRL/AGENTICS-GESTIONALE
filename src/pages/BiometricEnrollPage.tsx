@@ -22,10 +22,10 @@ export const BiometricEnrollPage = () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Sessione non valida.')
 
-      // 2. Pulisci eventuali fattori TOTP non verificati
+      // 2. Rimuovi tutti i fattori TOTP esistenti (verificati e non) per crearne uno nuovo legato alla biometria
       const { data: factors } = await supabase.auth.mfa.listFactors()
-      const unverified = factors?.totp?.filter(f => (f.status as string) !== 'verified') ?? []
-      for (const f of unverified) {
+      const allTotp = factors?.totp ?? []
+      for (const f of allTotp) {
         await supabase.auth.mfa.unenroll({ factorId: f.id })
       }
 

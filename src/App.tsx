@@ -56,7 +56,7 @@ function App() {
       const mobile = isMobilePlatform()
       if (mobile && await isBiometricAvailable()) {
         const { data: creds } = await supabase.from('webauthn_credentials').select('id').limit(1)
-        setAuthState(creds && creds.length > 0 ? 'needs-biometric-verify' : 'needs-mfa-verify')
+        setAuthState(creds && creds.length > 0 ? 'needs-biometric-verify' : 'needs-biometric-enroll')
       } else {
         setAuthState('needs-mfa-verify')
       }
