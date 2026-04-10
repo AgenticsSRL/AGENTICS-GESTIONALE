@@ -211,7 +211,36 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
         ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
         : rows.length === 0
           ? <EmptyState icon={CheckSquare} title="Nessun task" description="Crea il primo task per iniziare." action={{ label: 'Nuovo task', onClick: openNew }} />
-          : (
+          : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
+              {rows.map(t => {
+                const sb = statoBadge[t.stato]
+                const pb = prioritaBadge[t.priorita]
+                return (
+                  <div key={t.id} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                      <div
+                        onClick={() => onViewTask?.(t.id)}
+                        style={{ fontSize: 14, fontWeight: 600, color: '#1A2332', flex: 1, minWidth: 0, lineHeight: 1.4, cursor: onViewTask ? 'pointer' : 'default' }}
+                      >
+                        {t.titolo}
+                      </div>
+                      <div style={{ display: 'flex', gap: 0, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                      <Badge label={sb.label} color={sb.color} />
+                      <Badge label={pb.label} color={pb.color} />
+                      {t.progetti?.nome && <span style={{ fontSize: 11, color: '#6C7F94' }}>{t.progetti.nome}</span>}
+                      {t.scadenza && <span style={{ fontSize: 11, color: '#9CA3AF' }}>Scad. {new Date(t.scadenza).toLocaleDateString('it-IT')}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
             <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <div style={{ minWidth: 620 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
@@ -239,8 +268,8 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
                     <Badge label={pb.label} color={pb.color} />
                     <span style={{ fontSize: 13, color: '#4B5563' }}>{t.scadenza ? new Date(t.scadenza).toLocaleDateString('it-IT') : '—'}</span>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 )

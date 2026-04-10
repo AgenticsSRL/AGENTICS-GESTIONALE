@@ -9,6 +9,7 @@ import { Badge }      from '../components/ui/Badge'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const catBadge: Record<CategoriaSpesa, { label: string; color: 'blue' | 'purple' | 'orange' | 'green' | 'gray' }> = {
   software:  { label: 'Software',  color: 'blue' },
@@ -24,6 +25,7 @@ const today = () => new Date().toISOString().split('T')[0]
 const empty: Form = { progetto_id: null, data: today(), categoria: 'altro', importo: 0, descrizione: '' }
 
 export const SpesePage = () => {
+  const isMobile = useIsMobile()
   const [rows, setRows]           = useState<Spesa[]>([])
   const [progetti, setProgetti]   = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
   const [loading, setLoading]     = useState(true)
@@ -88,8 +90,34 @@ export const SpesePage = () => {
         ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
         : rows.length === 0
           ? <EmptyState icon={CreditCard} title="Nessuna spesa" description="Registra la prima spesa." action={{ label: 'Nuova spesa', onClick: openNew }} />
-          : (
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+          : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
+              {rows.map(s => {
+                const cb = catBadge[s.categoria]
+                return (
+                  <div key={s.id} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1A2332', lineHeight: 1.4 }}>{fmtEur(s.importo)}</div>
+                        <div style={{ fontSize: 12, color: '#4B5563', marginTop: 2, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{s.descrizione}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
+                        <button onClick={() => openEdit(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                      <Badge label={cb.label} color={cb.color} />
+                      <span style={{ fontSize: 11, color: '#9CA3AF' }}>{new Date(s.data).toLocaleDateString('it-IT')}</span>
+                      {s.progetti?.nome && <span style={{ fontSize: 11, color: '#6C7F94' }}>{s.progetti.nome}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 560 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1fr 1fr 2fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
                 {['Data', 'Progetto', 'Categoria', 'Importo', 'Descrizione', ''].map(h => (
                   <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
@@ -105,12 +133,13 @@ export const SpesePage = () => {
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{fmtEur(s.importo)}</span>
                     <span style={{ fontSize: 13, color: '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.descrizione}</span>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button onClick={() => openEdit(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteId(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEdit(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setDeleteId(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 )
               })}
+              </div>
             </div>
           )
       }

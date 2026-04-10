@@ -12,6 +12,14 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { UserPicker } from '../components/ui/UserPicker'
+import {
+  notifyTaskAssegnato,
+  notifyTaskInReview,
+  notifyTaskCompletato,
+  notifyTaskPartecipanteAggiunto,
+} from '../lib/notifications'
+
+const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
 const BRAND = '#005DEF'
 
@@ -152,11 +160,58 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!task) return
     const result = validate(taskSchema, form)
     if (!result.success) { setErrors(result.errors); return }
     setErrors({}); setSaving(true)
     const { error } = await supabase.from('task').update(result.data).eq('id', taskId)
     if (error) { setErrors({ _form: safeErrorMessage(error) }); setSaving(false); return }
+
+    // Notifiche
+    const { data: { user } } = await supabase.auth.getUser()
+    const currentEmail = user?.email ?? ADMIN_EMAIL
+    const progettoNome = progetti.find(p => p.id === form.progetto_id)?.nome ?? (task.progetti as { nome: string } | null)?.nome ?? 'N/A'
+    const memberName = (email: string) => {
+      const m = orgMembers.find(o => o.email === email)
+      return m ? [m.nome, m.cognome].filter(Boolean).join(' ') || email.split('@')[0] : email.split('@')[0]
+    }
+    // Cambio assegnatario
+    if (form.assegnatario && form.assegnatario !== task.assegnatario && form.assegnatario !== currentEmail) {
+      notifyTaskAssegnato({
+        taskTitolo: form.titolo, taskId,
+        progetto: progettoNome, priorita: form.priorita, scadenza: form.scadenza,
+        assegnatarioEmail: form.assegnatario, assegnatarioNome: memberName(form.assegnatario),
+      })
+    }
+    // Nuovi partecipanti
+    const vecchiPartecipanti = task.partecipanti ?? []
+    for (const email of (form.partecipanti ?? []).filter(e => !vecchiPartecipanti.includes(e))) {
+      if (email !== currentEmail) {
+        notifyTaskPartecipanteAggiunto({
+          taskTitolo: form.titolo, taskId, progetto: progettoNome,
+          priorita: form.priorita, scadenza: form.scadenza,
+          partecipanteEmail: email, partecipanteNome: memberName(email),
+        })
+      }
+    }
+    // Stato → in_review
+    if (form.stato === 'in_review' && task.stato !== 'in_review') {
+      notifyTaskInReview({
+        taskTitolo: form.titolo, progetto: progettoNome,
+        assegnatarioEmail: form.assegnatario ?? currentEmail,
+        reviewerEmail: ADMIN_EMAIL, reviewerNome: 'Lorenzo',
+      })
+    }
+    // Stato → done
+    if (form.stato === 'done' && task.stato !== 'done') {
+      const notificaEmail = form.assegnatario !== currentEmail ? ADMIN_EMAIL : (task.assegnatario ?? ADMIN_EMAIL)
+      notifyTaskCompletato({
+        taskTitolo: form.titolo, progetto: progettoNome,
+        assegnatarioEmail: form.assegnatario ?? currentEmail,
+        notificaEmail, notificaNome: notificaEmail === ADMIN_EMAIL ? 'Lorenzo' : memberName(notificaEmail),
+      })
+    }
+
     setSaving(false); setModal(false); loadTask()
   }
 
@@ -166,7 +221,27 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
   }
 
   const quickStatusChange = async (stato: StatoTask) => {
+    if (!task) return
     await supabase.from('task').update({ stato }).eq('id', taskId)
+    // Notifiche cambio stato rapido
+    const progettoNome = (task.progetti as { nome: string } | null)?.nome ?? 'N/A'
+    const { data: { user } } = await supabase.auth.getUser()
+    const currentEmail = user?.email ?? ADMIN_EMAIL
+    if (stato === 'in_review' && task.stato !== 'in_review') {
+      notifyTaskInReview({
+        taskTitolo: task.titolo, progetto: progettoNome,
+        assegnatarioEmail: task.assegnatario ?? currentEmail,
+        reviewerEmail: ADMIN_EMAIL, reviewerNome: 'Lorenzo',
+      })
+    }
+    if (stato === 'done' && task.stato !== 'done') {
+      const notificaEmail = task.assegnatario !== currentEmail ? ADMIN_EMAIL : (task.assegnatario ?? ADMIN_EMAIL)
+      notifyTaskCompletato({
+        taskTitolo: task.titolo, progetto: progettoNome,
+        assegnatarioEmail: task.assegnatario ?? currentEmail,
+        notificaEmail, notificaNome: notificaEmail === ADMIN_EMAIL ? 'Lorenzo' : (task.assegnatario?.split('@')[0] ?? 'Team'),
+      })
+    }
     loadTask()
   }
 

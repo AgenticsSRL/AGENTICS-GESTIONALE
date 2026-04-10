@@ -172,7 +172,7 @@ export const SpuntiPage = () => {
                 onClick={() => setDeleteId(s.id)}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#D1D5DB', padding: 4, display: 'flex', flexShrink: 0,
+                  color: '#D1D5DB', padding: 8, display: 'flex', flexShrink: 0, borderRadius: 6,
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#DC2626')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#D1D5DB')}

@@ -214,7 +214,35 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
         ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
         : rows.length === 0
           ? <EmptyState icon={FolderOpen} title="Nessun progetto" description="Crea il primo progetto per iniziare." action={{ label: 'Nuovo progetto', onClick: openNew }} />
-          : (
+          : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
+              {rows.map(p => {
+                const b = statoBadge[p.stato]
+                return (
+                  <div key={p.id} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                      <div
+                        onClick={() => onViewProgetto(p.id)}
+                        style={{ fontSize: 14, fontWeight: 600, color: '#1A2332', flex: 1, minWidth: 0, lineHeight: 1.4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        {p.nome}
+                        <ChevronRight style={{ width: 12, height: 12, color: '#9CA3AF', flexShrink: 0 }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 0, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                      <Badge label={b.label} color={b.color} />
+                      {p.clienti?.nome && <span style={{ fontSize: 11, color: '#6C7F94' }}>{p.clienti.nome}</span>}
+                      {p.pagamento_mensile != null && <span style={{ fontSize: 11, fontWeight: 600, color: '#1A2332' }}>{fmtEur(p.pagamento_mensile)}/mese</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
             <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <div style={{ minWidth: 640 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 1fr 1fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
@@ -247,8 +275,8 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
                     <span style={{ fontSize: 12, color: '#4B5563' }}>{periodo}</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: p.pagamento_mensile ? '#1A2332' : '#9CA3AF' }}>{fmtEur(p.pagamento_mensile)}</span>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 )
@@ -258,7 +286,7 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
           )
       }
 
-      <Modal open={modal} onClose={() => setModal(false)} title={isEditing ? 'Modifica progetto' : 'Nuovo progetto'} width="560px">
+      <Modal open={modal} onClose={() => setModal(false)} title={isEditing ? 'Modifica progetto' : 'Nuovo progetto'} width={isMobile ? 'calc(100vw - 32px)' : '560px'}>
         {renderForm()}
       </Modal>
 

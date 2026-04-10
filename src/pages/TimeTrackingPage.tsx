@@ -8,6 +8,7 @@ import { Button }     from '../components/ui/Button'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 type Form = Omit<TimeEntry, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'progetti' | 'task'>
 
@@ -15,6 +16,7 @@ const today = () => new Date().toISOString().split('T')[0]
 const empty: Form = { progetto_id: null, task_id: null, data: today(), ore: 0, nota: null }
 
 export const TimeTrackingPage = () => {
+  const isMobile = useIsMobile()
   const [rows, setRows]           = useState<TimeEntry[]>([])
   const [progetti, setProgetti]   = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
   const [tasks, setTasks]         = useState<Pick<Task, 'id' | 'titolo' | 'progetto_id'>[]>([])
@@ -89,8 +91,31 @@ export const TimeTrackingPage = () => {
         ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
         : rows.length === 0
           ? <EmptyState icon={Clock} title="Nessuna registrazione" description="Registra le prime ore lavorate." action={{ label: 'Registra ore', onClick: openNew }} />
-          : (
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+          : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
+              {rows.map(te => (
+                <div key={te.id} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: '#1A2332' }}>{Number(te.ore).toFixed(1)}h</span>
+                      {te.nota && <div style={{ fontSize: 12, color: '#4B5563', marginTop: 2, wordBreak: 'break-word' }}>{te.nota}</div>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
+                      <button onClick={() => openEdit(te)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => setDeleteId(te.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 12px' }}>
+                    <span style={{ fontSize: 11, color: '#9CA3AF' }}>{new Date(te.data).toLocaleDateString('it-IT')}</span>
+                    {te.progetti?.nome && <span style={{ fontSize: 11, color: '#6C7F94' }}>{te.progetti.nome}</span>}
+                    {te.task?.titolo && <span style={{ fontSize: 11, color: '#6C7F94' }}>{te.task.titolo}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 540 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1.2fr 0.6fr 2fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
                 {['Data', 'Progetto', 'Task', 'Ore', 'Nota', ''].map(h => (
                   <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
@@ -104,11 +129,12 @@ export const TimeTrackingPage = () => {
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{Number(te.ore).toFixed(1)}h</span>
                   <span style={{ fontSize: 13, color: '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{te.nota ?? '—'}</span>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                    <button onClick={() => openEdit(te)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => setDeleteId(te.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => openEdit(te)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setDeleteId(te.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )
       }

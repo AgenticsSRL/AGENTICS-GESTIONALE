@@ -38,7 +38,7 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
 
   return (
     <aside style={{
-      width: 240,
+      width: isMobileDrawer ? 'min(240px, 85vw)' : 240,
       flexShrink: 0,
       backgroundColor: BRAND,
       display: 'flex',

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { supabase } from '../lib/supabase'
 import { spesaSchema, validate, type ValidationErrors } from '../lib/validation'
 import { safeErrorMessage } from '../lib/errors'
@@ -51,6 +52,7 @@ const StatCell = ({ label, value, accent }: { label: string; value: string; acce
 )
 
 export const ContabilitaPage = () => {
+  const isMobile = useIsMobile()
   const [filter, setFilter] = useState<Filter>('tutte')
   const [spese, setSpese]         = useState<Spesa[]>([])
   const [progetti, setProgetti]   = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
@@ -151,7 +153,7 @@ export const ContabilitaPage = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* KPI strip */}
-      <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)' }}>
         <StatCell label="Totale spese" value={fmtEur(totTutte)} accent="#1A2332" />
         <div style={{ borderLeft: '1px solid #E5E7EB' }}>
           <StatCell label="Spese progetto" value={fmtEur(totProgetto)} />
@@ -168,7 +170,7 @@ export const ContabilitaPage = () => {
       </div>
 
       {/* Detail panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
         <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #E5E7EB' }}>
             <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1A2332' }}>Per categoria</span>
@@ -212,15 +214,15 @@ export const ContabilitaPage = () => {
       </div>
 
       {/* Filter tabs + button */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E7EB' }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: isMobile ? 8 : 0 }}>
+        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch', flexShrink: 0 }}>
           <button style={filterStyle('tutte')} onClick={() => setFilter('tutte')}>Tutte ({spese.length})</button>
-          <button style={filterStyle('progetto')} onClick={() => setFilter('progetto')}>Progetto ({spese.filter(s => s.progetto_id).length})</button>
-          <button style={filterStyle('interne')} onClick={() => setFilter('interne')}>Interne ({spese.filter(s => !s.progetto_id).length})</button>
-          <button style={filterStyle('ricorrenti')} onClick={() => setFilter('ricorrenti')}>Ricorrenti ({allRicorrenti.length})</button>
+          <button style={filterStyle('progetto')} onClick={() => setFilter('progetto')}>{isMobile ? 'Progetto' : `Progetto (${spese.filter(s => s.progetto_id).length})`}</button>
+          <button style={filterStyle('interne')} onClick={() => setFilter('interne')}>{isMobile ? 'Interne' : `Interne (${spese.filter(s => !s.progetto_id).length})`}</button>
+          <button style={filterStyle('ricorrenti')} onClick={() => setFilter('ricorrenti')}>{isMobile ? 'Ricorr.' : `Ricorrenti (${allRicorrenti.length})`}</button>
         </div>
         {filter !== 'ricorrenti' && (
-          <Button onClick={openNew}><Plus className="w-3.5 h-3.5" />Nuova spesa</Button>
+          <Button onClick={openNew} style={isMobile ? { alignSelf: 'flex-end' } : {}}><Plus className="w-3.5 h-3.5" />Nuova spesa</Button>
         )}
       </div>
 
@@ -230,6 +232,25 @@ export const ContabilitaPage = () => {
           <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', padding: '32px', textAlign: 'center' }}>
             <div style={{ fontSize: 13, color: '#9CA3AF' }}>Nessuna spesa ricorrente attiva nei progetti.</div>
             <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Le spese ricorrenti si gestiscono dal tab Spese di ogni progetto.</div>
+          </div>
+        ) : isMobile ? (
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+            {allRicorrenti.map(r => (
+              <div key={r.id} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1A2332', flex: 1, minWidth: 0 }}>{r.nome}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1A2332', flexShrink: 0 }}>{fmtEur(ricToMensile(r))}<span style={{ fontSize: 10, fontWeight: 400, color: '#6C7F94' }}>/m</span></span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 12px' }}>
+                  <span style={{ fontSize: 11, color: '#6C7F94' }}>{r.progettoNome}</span>
+                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>{catLabel[r.categoria]} · {freqLabel[r.frequenza]} · {fmtEur(r.importo)}</span>
+                </div>
+              </div>
+            ))}
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1A2332' }}>Totale mensile</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1A2332' }}>{fmtEur(totRicMensile)}</span>
+            </div>
           </div>
         ) : (
           <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
@@ -265,8 +286,36 @@ export const ContabilitaPage = () => {
         /* Standard expenses table */
         filtered.length === 0
           ? <EmptyState icon={Pencil} title="Nessuna spesa" description={filter === 'tutte' ? 'Registra la prima spesa per iniziare.' : `Nessuna spesa ${filter === 'interne' ? 'interna' : 'su progetto'} registrata.`} action={{ label: 'Nuova spesa', onClick: openNew }} />
-          : (
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+          : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
+              {filtered.map(s => {
+                const cb = catBadge[s.categoria]
+                const isInterna = s.progetto_id === null
+                return (
+                  <div key={s.id} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1A2332' }}>{fmtEur(s.importo)}</div>
+                        <div style={{ fontSize: 12, color: '#4B5563', marginTop: 2, wordBreak: 'break-word' }}>{s.descrizione}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
+                        <button onClick={() => openEdit(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                      <Badge label={cb.label} color={cb.color} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: isInterna ? '#7C3AED' : BRAND }}>{isInterna ? 'Interna' : 'Progetto'}</span>
+                      <span style={{ fontSize: 11, color: '#9CA3AF' }}>{new Date(s.data).toLocaleDateString('it-IT')}</span>
+                      {s.progetti?.nome && <span style={{ fontSize: 11, color: '#6C7F94' }}>{s.progetti.nome}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 640 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.7fr 1.2fr 0.8fr 0.8fr 2fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
                 {['Data', 'Tipo', 'Progetto', 'Categoria', 'Importo', 'Descrizione', ''].map(h => (
                   <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
@@ -284,12 +333,13 @@ export const ContabilitaPage = () => {
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{fmtEur(s.importo)}</span>
                     <span style={{ fontSize: 13, color: '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.descrizione}</span>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button onClick={() => openEdit(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteId(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEdit(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setDeleteId(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 )
               })}
+              </div>
             </div>
           )
       )}

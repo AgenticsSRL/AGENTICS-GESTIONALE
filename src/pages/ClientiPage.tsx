@@ -90,7 +90,41 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
         ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
         : clienti.length === 0
           ? <EmptyState icon={Users} title="Nessun cliente" description="Aggiungi il primo cliente per iniziare." action={{ label: 'Aggiungi cliente', onClick: openNew }} />
-          : (
+          : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
+              {clienti.map(c => (
+                <div key={c.id} style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                    <div
+                      onClick={() => onViewCliente?.(c.id)}
+                      style={{ fontSize: 14, fontWeight: 600, color: '#1A2332', flex: 1, minWidth: 0, cursor: onViewCliente ? 'pointer' : 'default', lineHeight: 1.4 }}
+                    >
+                      {c.nome}
+                      {c.settore && <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 400, marginTop: 2 }}>{c.settore}</div>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
+                      {onViewCliente && (
+                        <button onClick={() => onViewCliente(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#005DEF', padding: '8px', display: 'flex', borderRadius: 6 }} title="Dettaglio">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button onClick={() => openEdit(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setDeleteId(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
+                    {c.email && <span style={{ fontSize: 12, color: '#4B5563' }}>{c.email}</span>}
+                    {c.telefono && <span style={{ fontSize: 12, color: '#4B5563' }}>{c.telefono}</span>}
+                    {c.citta && <span style={{ fontSize: 12, color: '#9CA3AF' }}>{c.citta}{c.provincia ? ` (${c.provincia})` : ''}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
             <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <div style={{ minWidth: 640 }}>
               {/* Intestazione */}
@@ -127,14 +161,14 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
                   </div>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                     {onViewCliente && (
-                      <button onClick={() => onViewCliente(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#005DEF', padding: 4, display: 'flex' }} title="Dettaglio">
+                      <button onClick={() => onViewCliente(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#005DEF', padding: 6, display: 'flex', borderRadius: 4 }} title="Dettaglio">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <button onClick={() => openEdit(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica">
+                    <button onClick={() => openEdit(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => setDeleteId(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Elimina">
+                    <button onClick={() => setDeleteId(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -146,7 +180,7 @@ export const ClientiPage = ({ onViewCliente }: ClientiPageProps = {}) => {
       }
 
       {/* Modal form */}
-      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica cliente' : 'Nuovo cliente'} width="640px">
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica cliente' : 'Nuovo cliente'} width={isMobile ? 'calc(100vw - 32px)' : '640px'}>
         <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {errors._form && <p style={{ fontSize: 12, color: '#DC2626' }}>{errors._form}</p>}
 

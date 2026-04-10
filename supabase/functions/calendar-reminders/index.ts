@@ -71,8 +71,8 @@ function buildReminderHtml(opts: {
   giorniMancanti: number
   recipientNome: string
 }): string {
-  const giorni = opts.giorniMancanti === 1 ? 'domani' : `tra ${opts.giorniMancanti} giorni`
-  const giorniLabel = opts.giorniMancanti === 1 ? '1 GIORNO' : `${opts.giorniMancanti} GIORNI`
+  const giorni = opts.giorniMancanti === 0 ? 'oggi' : opts.giorniMancanti === 1 ? 'domani' : `tra ${opts.giorniMancanti} giorni`
+  const giorniLabel = opts.giorniMancanti === 0 ? 'OGGI' : opts.giorniMancanti === 1 ? '1 GIORNO' : `${opts.giorniMancanti} GIORNI`
   const tipoLabel: Record<string, string> = {
     appuntamento: 'Appuntamento',
     meeting: 'Meeting',
@@ -135,7 +135,7 @@ function buildReminderHtml(opts: {
               <tr>
                 <td class="mob-px" style="padding:0 36px 32px;">
                   <div class="mob-title" style="font-family:'DM Sans',Arial,sans-serif;font-size:26px;font-weight:700;line-height:1.2;color:#FFFFFF;margin:0 0 10px;">
-                    ${opts.giorniMancanti === 1 ? 'Domani hai un evento' : `Evento ${giorni}`}
+                    ${opts.giorniMancanti === 0 ? 'Hai un evento oggi' : opts.giorniMancanti === 1 ? 'Domani hai un evento' : `Evento ${giorni}`}
                   </div>
                   <div style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;font-weight:400;color:#64748B;line-height:1.5;margin:0;">
                     ${esc(opts.titolo)}
@@ -310,8 +310,8 @@ serve(async () => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Calcola le 3 date target: oggi+1, oggi+3, oggi+5
-  const targets = [1, 3, 5].map(d => {
+  // Calcola le 4 date target: oggi, oggi+1, oggi+3, oggi+5
+  const targets = [0, 1, 3, 5].map(d => {
     const dt = new Date(today)
     dt.setDate(dt.getDate() + d)
     return { days: d, iso: dt.toISOString().slice(0, 10) }
@@ -377,9 +377,11 @@ serve(async () => {
         recipientNome,
       })
 
-      const subject = target.days === 1
-        ? `⏰ Domani: ${ev.titolo}`
-        : `📅 Tra ${target.days} giorni: ${ev.titolo}`
+      const subject = target.days === 0
+        ? `🔔 Oggi: ${ev.titolo}`
+        : target.days === 1
+          ? `⏰ Domani: ${ev.titolo}`
+          : `📅 Tra ${target.days} giorni: ${ev.titolo}`
 
       await sendViaWebhook(webhookUrl, [...destinatari], subject, html)
       sent++

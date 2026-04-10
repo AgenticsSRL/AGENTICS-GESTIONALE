@@ -69,7 +69,6 @@ const fmtDateISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${p
 const GIORNI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
 
-const isSameDay = (a: string, b: string) => a.slice(0, 10) === b.slice(0, 10)
 
 const parseTimeToMinutes = (time: string): number => {
   const [h, m] = time.split(':').map(Number)
@@ -312,7 +311,12 @@ export const CalendarioPage = () => {
   }
 
   /* Queries */
-  const eventsOnDate = useCallback((dateStr: string) => eventi.filter(ev => isSameDay(ev.data_inizio, dateStr)), [eventi])
+  const eventsOnDate = useCallback((dateStr: string) => eventi.filter(ev => {
+    const date = dateStr.slice(0, 10)
+    const start = ev.data_inizio.slice(0, 10)
+    const end = ev.data_fine.slice(0, 10)
+    return date >= start && date <= end
+  }), [eventi])
   const todayStr = fmtDateISO(today)
 
   if (loading) return <div style={{ color: '#6C7F94', fontSize: 13, padding: 32 }}>Caricamento...</div>
@@ -577,12 +581,14 @@ const MonthView = ({
               onClick={() => onSelectDate(dateStr)}
               onDoubleClick={() => onNewEvent(dateStr)}
               style={{
-                minHeight: isMobile ? 52 : 90, padding: isMobile ? '3px 2px' : '4px 6px',
+                minHeight: isMobile ? 52 : 90,
+                padding: isMobile ? '3px 2px' : '4px 2px',
                 borderRight: (i + 1) % 7 !== 0 ? '1px solid #F3F4F6' : 'none',
                 borderBottom: i < 35 ? '1px solid #F3F4F6' : 'none',
                 backgroundColor: isSelected ? '#F8F9FB' : '#fff',
                 cursor: 'pointer',
                 opacity: isCurrentMonth ? 1 : 0.35,
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
               }}
             >
               <div style={{
@@ -591,13 +597,13 @@ const MonthView = ({
                 width: isMobile ? 20 : 22, height: isMobile ? 20 : 22,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 backgroundColor: isToday ? '#1A2332' : 'transparent',
-                borderRadius: '50%', marginBottom: 2,
+                borderRadius: '50%', marginBottom: 2, flexShrink: 0,
               }}>
                 {d.getDate()}
               </div>
               {isMobile ? (
                 /* Dot indicators su mobile */
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', alignSelf: 'stretch' }}>
                   {sorted.slice(0, 3).map(ev => (
                     <div
                       key={ev.id}
@@ -614,7 +620,7 @@ const MonthView = ({
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, alignSelf: 'stretch', padding: '0 4px' }}>
                   {sorted.slice(0, 3).map(ev => (
                     <div
                       key={ev.id}

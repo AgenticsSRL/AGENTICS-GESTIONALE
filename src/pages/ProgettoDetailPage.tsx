@@ -1,5 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
+  notifyTaskAssegnato,
+  notifyTaskInReview,
+  notifyTaskCompletato,
+  notifyTaskPartecipanteAggiunto,
+  notifyTaskUrgente,
+  notifyProgettoPipelineAdvance,
+} from '../lib/notifications'
+
+const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
+import {
   ArrowLeft, Plus, Pencil, Trash2, Upload, Download,
   FileText, Clock, Shield, StickyNote, Briefcase, Lock, EyeOff, Copy, KeyRound,
   CheckSquare, ChevronDown, ChevronRight, Send, X, Eye, Users,
@@ -14,6 +24,7 @@ import type {
   ChecklistItem, TaskCommento, MilestoneItem, ScadenzaFatturazione,
   LegalSection, LegalDocument, TeamMember, RuoloTeam,
   Spesa, CategoriaSpesa, SpesaRicorrente, FrequenzaSpesa,
+  OrgMember,
 } from '../types'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -311,6 +322,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
 
   const saveProject = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!progetto) return
     const result = validate(progettoSchema, editForm)
     if (!result.success) { setEditErrors(result.errors); return }
     setEditErrors({}); setEditSaving(true)
@@ -318,6 +330,20 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
     if (error) { setEditErrors({ _form: safeErrorMessage(error) }); setEditSaving(false); return }
     setEditSaving(false); setEditModal(false)
     await logActivity('Progetto aggiornato', `Modificati i dati del progetto`)
+    // Notifica avanzamento pipeline se lo stato è cambiato
+    const statoNuovo = editForm.stato as string
+    if (statoNuovo && statoNuovo !== progetto.stato) {
+      const clienteNome = clienti.find(c => c.id === editForm.cliente_id)?.nome ?? progetto.clienti?.nome ?? 'N/A'
+      notifyProgettoPipelineAdvance({
+        progettoNome: editForm.nome as string ?? progetto.nome,
+        progettoId,
+        statoPrecedente: progetto.stato,
+        statoNuovo,
+        cliente: clienteNome,
+        pagamentoMensile: (editForm.pagamento_mensile as number) ?? progetto.pagamento_mensile,
+        adminEmail: ADMIN_EMAIL,
+      })
+    }
     loadProgetto()
   }
 
@@ -410,7 +436,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
 
       {/* Tab content */}
       {tab === 'overview' && <OverviewTab progetto={progetto} onSave={loadProgetto} />}
-      {tab === 'task' && <TaskTab progettoId={progettoId} logActivity={logActivity} />}
+      {tab === 'task' && <TaskTab progettoId={progettoId} progettoNome={progetto.nome} logActivity={logActivity} />}
       {tab === 'spese' && <SpeseProgettoTab progetto={progetto} onSave={loadProgetto} logActivity={logActivity} />}
       {tab === 'team' && <TeamTab progetto={progetto} onSave={loadProgetto} logActivity={logActivity} />}
       {tab === 'timeline' && <TimelineTab progettoId={progettoId} />}
@@ -716,7 +742,7 @@ const emptyTaskForm: TaskForm = {
   dipendenza_id: null, checklist: [], commenti: [],
 }
 
-const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity: (a: string, d?: string) => Promise<void> }) => {
+const TaskTab = ({ progettoId, progettoNome, logActivity }: { progettoId: string; progettoNome: string; logActivity: (a: string, d?: string) => Promise<void> }) => {
   const isMobile = useIsMobile()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -731,6 +757,12 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
   const [newCheckItem, setNewCheckItem] = useState('')
   const [newComment, setNewComment] = useState('')
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([])
+
+  const memberName = (email: string) => {
+    const m = orgMembers.find(o => o.email === email)
+    return m ? [m.nome, m.cognome].filter(Boolean).join(' ') || email.split('@')[0] : email.split('@')[0]
+  }
 
   const loadTasks = useCallback(async () => {
     const { data } = await supabase.from('task').select('*').eq('progetto_id', progettoId).order('created_at', { ascending: false })
@@ -738,7 +770,10 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
     setLoading(false)
   }, [progettoId])
 
-  useEffect(() => { loadTasks() }, [loadTasks])
+  useEffect(() => {
+    loadTasks()
+    supabase.rpc('get_org_members').then(({ data }) => setOrgMembers(data ?? []))
+  }, [loadTasks])
 
   const openNew = () => {
     setEditing(null); setForm({ ...emptyTaskForm }); setErrors({}); setModal(true)
@@ -764,6 +799,65 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
       ? await supabase.from('task').update(result.data).eq('id', editing.id)
       : await supabase.from('task').insert(result.data)
     if (error) { setErrors({ _form: safeErrorMessage(error) }); setSaving(false); return }
+
+    // Notifiche
+    const { data: { user } } = await supabase.auth.getUser()
+    const currentEmail = user?.email ?? ADMIN_EMAIL
+    if (!editing) {
+      // Nuovo task
+      if (form.assegnatario && form.assegnatario !== currentEmail) {
+        notifyTaskAssegnato({
+          taskTitolo: form.titolo, taskId: '', progetto: progettoNome,
+          priorita: form.priorita, scadenza: form.scadenza,
+          assegnatarioEmail: form.assegnatario, assegnatarioNome: memberName(form.assegnatario),
+        })
+      }
+      if (form.priorita === 'urgente') {
+        notifyTaskUrgente({
+          taskTitolo: form.titolo, progetto: progettoNome, scadenza: form.scadenza,
+          assegnatarioEmail: form.assegnatario ?? ADMIN_EMAIL,
+          assegnatarioNome: memberName(form.assegnatario ?? ADMIN_EMAIL),
+          adminEmail: ADMIN_EMAIL,
+        })
+      }
+    } else {
+      // Modifica
+      if (form.assegnatario && form.assegnatario !== editing.assegnatario && form.assegnatario !== currentEmail) {
+        notifyTaskAssegnato({
+          taskTitolo: form.titolo, taskId: editing.id, progetto: progettoNome,
+          priorita: form.priorita, scadenza: form.scadenza,
+          assegnatarioEmail: form.assegnatario, assegnatarioNome: memberName(form.assegnatario),
+        })
+      }
+      if (form.stato === 'in_review' && editing.stato !== 'in_review') {
+        notifyTaskInReview({
+          taskTitolo: form.titolo, progetto: progettoNome,
+          assegnatarioEmail: form.assegnatario ?? currentEmail,
+          reviewerEmail: ADMIN_EMAIL, reviewerNome: 'Lorenzo',
+        })
+      }
+      if (form.stato === 'done' && editing.stato !== 'done') {
+        const notificaEmail = form.assegnatario !== currentEmail ? ADMIN_EMAIL : (editing.assegnatario ?? ADMIN_EMAIL)
+        notifyTaskCompletato({
+          taskTitolo: form.titolo, progetto: progettoNome,
+          assegnatarioEmail: form.assegnatario ?? currentEmail,
+          notificaEmail, notificaNome: notificaEmail === ADMIN_EMAIL ? 'Lorenzo' : memberName(notificaEmail),
+        })
+      }
+      // Nuovi partecipanti (se il form ha campo partecipanti)
+      const vecchiPartecipanti = (editing as Task & { partecipanti?: string[] }).partecipanti ?? []
+      const formPartecipanti = (form as TaskForm & { partecipanti?: string[] }).partecipanti ?? []
+      for (const email of formPartecipanti.filter(e => !vecchiPartecipanti.includes(e))) {
+        if (email !== currentEmail) {
+          notifyTaskPartecipanteAggiunto({
+            taskTitolo: form.titolo, taskId: editing.id, progetto: progettoNome,
+            priorita: form.priorita, scadenza: form.scadenza,
+            partecipanteEmail: email, partecipanteNome: memberName(email),
+          })
+        }
+      }
+    }
+
     setSaving(false); setModal(false)
     await logActivity(editing ? 'Task aggiornato' : 'Task creato', `"${form.titolo}"`)
     loadTasks()
@@ -800,7 +894,27 @@ const TaskTab = ({ progettoId, logActivity }: { progettoId: string; logActivity:
   }
 
   const quickStatusChange = async (taskId: string, stato: StatoTask) => {
+    const t = tasks.find(x => x.id === taskId)
     await supabase.from('task').update({ stato }).eq('id', taskId)
+    if (t) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const currentEmail = user?.email ?? ADMIN_EMAIL
+      if (stato === 'in_review' && t.stato !== 'in_review') {
+        notifyTaskInReview({
+          taskTitolo: t.titolo, progetto: progettoNome,
+          assegnatarioEmail: t.assegnatario ?? currentEmail,
+          reviewerEmail: ADMIN_EMAIL, reviewerNome: 'Lorenzo',
+        })
+      }
+      if (stato === 'done' && t.stato !== 'done') {
+        const notificaEmail = t.assegnatario !== currentEmail ? ADMIN_EMAIL : (t.assegnatario ?? ADMIN_EMAIL)
+        notifyTaskCompletato({
+          taskTitolo: t.titolo, progetto: progettoNome,
+          assegnatarioEmail: t.assegnatario ?? currentEmail,
+          notificaEmail, notificaNome: notificaEmail === ADMIN_EMAIL ? 'Lorenzo' : memberName(notificaEmail),
+        })
+      }
+    }
     loadTasks()
   }
 
