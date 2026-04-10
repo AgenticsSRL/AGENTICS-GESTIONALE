@@ -22,14 +22,14 @@ export const BiometricEnrollPage = () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Sessione non valida.')
 
-      // 2. Rimuovi tutti i fattori TOTP esistenti (verificati e non) per crearne uno nuovo legato alla biometria
+      // 2. Pulisci solo fattori non verificati (quelli verificati non si possono rimuovere a AAL1)
       const { data: factors } = await supabase.auth.mfa.listFactors()
-      const allTotp = factors?.totp ?? []
-      for (const f of allTotp) {
+      const unverified = factors?.totp?.filter(f => (f.status as string) !== 'verified') ?? []
+      for (const f of unverified) {
         await supabase.auth.mfa.unenroll({ factorId: f.id })
       }
 
-      // 3. Enroll TOTP su Supabase — cattura il segreto
+      // 3. Enroll nuovo TOTP su Supabase (legato alla biometria, nascosto all'utente)
       const { data: enrollData, error: enrollErr } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Accesso biometrico',
@@ -50,7 +50,7 @@ export const BiometricEnrollPage = () => {
       })
       if (dbErr) throw dbErr
 
-      // 6. Genera codice TOTP corrente e verifica per elevare a aal2
+      // 6. Genera codice TOTP corrente e verifica per elevare a AAL2
       const code = await generateTotp(secret)
       const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId })
       if (chErr) throw chErr
