@@ -42,11 +42,16 @@ export const BiometricEnrollPage = () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Sessione non valida.')
 
+      // Rimuovi solo fattori biometrici precedenti o non verificati (NON toccare Google Authenticator)
       const { data: factors } = await supabase.auth.mfa.listFactors()
-      const allTotp = factors?.totp ?? []
-      for (const f of allTotp) {
-        await supabase.auth.mfa.unenroll({ factorId: f.id })
+      for (const f of factors?.totp ?? []) {
+        if (f.friendly_name === 'Accesso biometrico' || (f.status as string) !== 'verified') {
+          await supabase.auth.mfa.unenroll({ factorId: f.id })
+        }
       }
+
+      // Rimuovi credenziali biometriche precedenti per questo dispositivo
+      await supabase.from('webauthn_credentials').delete().eq('user_id', user.id)
 
       const { data: enrollData, error: enrollErr } = await supabase.auth.mfa.enroll({
         factorType: 'totp',

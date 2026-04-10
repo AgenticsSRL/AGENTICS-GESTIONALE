@@ -59,9 +59,10 @@ export const BiometricVerifyPage = () => {
       // 4. Genera codice TOTP corrente
       const code = await generateTotp(matched.totp_secret)
 
-      // 5. Verifica con Supabase MFA → sessione sale a aal2
+      // 5. Verifica con Supabase MFA → sessione sale a aal2 (preferisci il fattore biometrico)
       const { data: factors } = await supabase.auth.mfa.listFactors()
-      const totp = factors?.totp?.find(f => f.status === 'verified')
+      const totp = factors?.totp?.find(f => f.status === 'verified' && f.friendly_name === 'Accesso biometrico')
+        ?? factors?.totp?.find(f => f.status === 'verified')
       if (!totp) throw new Error('Nessun fattore TOTP attivo.')
 
       const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId: totp.id })
