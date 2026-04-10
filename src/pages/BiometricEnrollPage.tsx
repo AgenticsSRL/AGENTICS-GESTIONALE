@@ -1,35 +1,53 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { registerBiometric, generateTotp } from '../lib/webauthn'
 import logoSrc from '../assets/logo-agentics.svg'
 
 const BRAND = '#005DEF'
+const CODE_LENGTH = 6
 
-type Step = 'intro' | 'registering' | 'success' | 'error'
+type Step = 'intro' | 'totp-bridge' | 'registering' | 'success' | 'error'
 
 export const BiometricEnrollPage = () => {
   const [step, setStep] = useState<Step>('intro')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [needsTotpBridge, setNeedsTotpBridge] = useState(false)
 
-  const enroll = async () => {
+  useEffect(() => {
+    supabase.auth.mfa.listFactors().then(({ data }) => {
+      const hasVerified = data?.totp?.some(f => f.status === 'verified') ?? false
+      setNeedsTotpBridge(hasVerified)
+    })
+  }, [])
+
+  const startEnroll = () => {
+    if (needsTotpBridge) {
+      setStep('totp-bridge')
+    } else {
+      enrollBiometric()
+    }
+  }
+
+  const onTotpVerified = () => {
+    enrollBiometric()
+  }
+
+  const enrollBiometric = async () => {
     setLoading(true)
     setErrorMsg(null)
     setStep('registering')
 
     try {
-      // 1. Ottieni utente corrente
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Sessione non valida.')
 
-      // 2. Pulisci solo fattori non verificati (quelli verificati non si possono rimuovere a AAL1)
       const { data: factors } = await supabase.auth.mfa.listFactors()
-      const unverified = factors?.totp?.filter(f => (f.status as string) !== 'verified') ?? []
-      for (const f of unverified) {
+      const allTotp = factors?.totp ?? []
+      for (const f of allTotp) {
         await supabase.auth.mfa.unenroll({ factorId: f.id })
       }
 
-      // 3. Enroll nuovo TOTP su Supabase (legato alla biometria, nascosto all'utente)
       const { data: enrollData, error: enrollErr } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Accesso biometrico',
@@ -38,10 +56,8 @@ export const BiometricEnrollPage = () => {
 
       const { id: factorId, totp: { secret } } = enrollData
 
-      // 4. Registra Face ID / Touch ID sul dispositivo
       const { credentialId } = await registerBiometric(user.id, user.email ?? user.id)
 
-      // 5. Salva credential_id + secret in Supabase
       const { error: dbErr } = await supabase.from('webauthn_credentials').insert({
         user_id: user.id,
         credential_id: credentialId,
@@ -50,7 +66,6 @@ export const BiometricEnrollPage = () => {
       })
       if (dbErr) throw dbErr
 
-      // 6. Genera codice TOTP corrente e verifica per elevare a AAL2
       const code = await generateTotp(secret)
       const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId })
       if (chErr) throw chErr
@@ -62,7 +77,6 @@ export const BiometricEnrollPage = () => {
       })
       if (verErr) throw verErr
 
-      // Supabase emetterà un onAuthStateChange → App.tsx aggiornerà lo stato
       setStep('success')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Errore durante la configurazione.'
@@ -81,7 +95,6 @@ export const BiometricEnrollPage = () => {
           <img src={logoSrc} alt="Agentics" style={{ height: '40px' }} />
         </div>
 
-        {/* ── Intro ────────────────────────────── */}
         {step === 'intro' && (
           <div>
             <div className="mb-10">
@@ -116,7 +129,6 @@ export const BiometricEnrollPage = () => {
               </div>
             </div>
 
-            {/* Icona biometrica */}
             <div className="flex justify-center mb-8">
               <div style={{
                 width: 80, height: 80, borderRadius: '50%',
@@ -132,7 +144,7 @@ export const BiometricEnrollPage = () => {
             </div>
 
             <button
-              onClick={enroll}
+              onClick={startEnroll}
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 text-sm font-semibold"
               style={{
@@ -160,7 +172,10 @@ export const BiometricEnrollPage = () => {
           </div>
         )}
 
-        {/* ── In corso ─────────────────────────── */}
+        {step === 'totp-bridge' && (
+          <TotpBridge onVerified={onTotpVerified} onBack={() => setStep('intro')} />
+        )}
+
         {step === 'registering' && (
           <div className="text-center">
             <div className="flex justify-center mb-6">
@@ -172,7 +187,6 @@ export const BiometricEnrollPage = () => {
           </div>
         )}
 
-        {/* ── Successo ─────────────────────────── */}
         {step === 'success' && (
           <div className="text-center">
             <div className="flex justify-center mb-6">
@@ -192,7 +206,6 @@ export const BiometricEnrollPage = () => {
           </div>
         )}
 
-        {/* ── Errore ───────────────────────────── */}
         {step === 'error' && (
           <div>
             <div
@@ -230,6 +243,131 @@ export const BiometricEnrollPage = () => {
           </div>
         )}
 
+      </div>
+    </div>
+  )
+}
+
+function TotpBridge({ onVerified, onBack }: { onVerified: () => void; onBack: () => void }) {
+  const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''))
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  useEffect(() => { inputRefs.current[0]?.focus() }, [])
+
+  const verify = useCallback(async (code: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const totp = factors?.totp?.find(f => f.status === 'verified')
+      if (!totp) throw new Error('Nessun fattore TOTP attivo.')
+
+      const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId: totp.id })
+      if (chErr) throw chErr
+
+      const { error: verErr } = await supabase.auth.mfa.verify({
+        factorId: totp.id,
+        challengeId: challenge.id,
+        code,
+      })
+      if (verErr) throw verErr
+
+      onVerified()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Codice non valido.')
+      setDigits(Array(CODE_LENGTH).fill(''))
+      inputRefs.current[0]?.focus()
+    } finally {
+      setLoading(false)
+    }
+  }, [onVerified])
+
+  const handleChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return
+    const next = [...digits]
+    next[index] = value.slice(-1)
+    setDigits(next)
+    if (value && index < CODE_LENGTH - 1) inputRefs.current[index + 1]?.focus()
+    if (next.every(d => d !== '')) verify(next.join(''))
+  }
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus()
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH)
+    if (!text) return
+    const next = Array(CODE_LENGTH).fill('')
+    text.split('').forEach((ch, i) => { next[i] = ch })
+    setDigits(next)
+    inputRefs.current[Math.min(text.length, CODE_LENGTH - 1)]?.focus()
+    if (text.length === CODE_LENGTH) verify(text)
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1
+          className="text-2xl font-bold mb-1"
+          style={{ color: BRAND, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+        >
+          Verifica Identità
+        </h1>
+        <p className="text-sm" style={{ color: '#6C7F94' }}>
+          Inserisci il codice Google Authenticator per l'ultima volta. Dopo non ti servirà più su questo dispositivo.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-4" style={{ borderLeft: '3px solid #D0021B', backgroundColor: '#FEF2F2', padding: '10px 14px' }}>
+          <p className="text-sm" style={{ color: '#991B1B' }}>{error}</p>
+        </div>
+      )}
+
+      <div className="flex justify-center gap-3 mb-6" onPaste={handlePaste}>
+        {digits.map((d, i) => (
+          <input
+            key={i}
+            ref={el => { inputRefs.current[i] = el }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={d}
+            onChange={e => handleChange(i, e.target.value)}
+            onKeyDown={e => handleKeyDown(i, e)}
+            disabled={loading}
+            style={{
+              width: 44, height: 52, textAlign: 'center',
+              fontSize: '20px', fontWeight: 700,
+              border: '1px solid #E5E7EB', borderBottom: `2px solid ${d ? BRAND : '#E5E7EB'}`,
+              outline: 'none', color: '#1A2332', transition: 'border-color 0.15s',
+              borderRadius: 0,
+            }}
+            onFocus={e => { e.currentTarget.style.borderBottomColor = BRAND }}
+            onBlur={e => { if (!d) e.currentTarget.style.borderBottomColor = '#E5E7EB' }}
+          />
+        ))}
+      </div>
+
+      {loading && (
+        <div className="flex justify-center mb-4">
+          <div style={{ width: 20, height: 20, border: '2px solid #E5E7EB', borderTopColor: BRAND, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      )}
+
+      <div className="flex justify-center">
+        <button
+          onClick={onBack}
+          className="text-xs font-semibold uppercase tracking-widest"
+          style={{ color: '#6C7F94', background: 'none', border: 'none', cursor: 'pointer' }}
+        >
+          Indietro
+        </button>
       </div>
     </div>
   )
