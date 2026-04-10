@@ -110,9 +110,10 @@ export async function generateTotp(secret: string): Promise<string> {
   const view = new DataView(counterBuffer)
   view.setUint32(4, counter >>> 0, false)
 
+  const keyData = new Uint8Array(secretBytes).buffer as ArrayBuffer
   const key = await crypto.subtle.importKey(
     'raw',
-    secretBytes,
+    keyData,
     { name: 'HMAC', hash: 'SHA-1' },
     false,
     ['sign'],
