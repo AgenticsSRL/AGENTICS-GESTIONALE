@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { sendNotification } from '../lib/notifications'
+import { useCurrentRole } from '../hooks/useCurrentRole'
 
 const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
@@ -169,7 +170,10 @@ const emptyForm = (date?: string) => ({
 export const CalendarioPage = () => {
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 640
+  const { role } = useCurrentRole()
+  const isDeveloper = role === 'developer'
 
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [eventi, setEventi] = useState<Evento[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -188,6 +192,8 @@ export const CalendarioPage = () => {
   const [detailEvent, setDetailEvent] = useState<Evento | null>(null)
 
   const loadEventi = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setCurrentUserId(user?.id ?? null)
     const { data } = await supabase
       .from('calendario_eventi')
       .select('*')
@@ -447,10 +453,12 @@ export const CalendarioPage = () => {
                 <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{detailEvent.descrizione}</div>
               </div>
             )}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 20 }}>
-              <Button size="sm" variant="ghost" onClick={() => openEdit(detailEvent)}><Pencil style={{ width: 11, height: 11 }} /> Modifica</Button>
-              <Button size="sm" variant="danger" onClick={() => { setDeleteId(detailEvent.id); setDetailEvent(null) }}><Trash2 style={{ width: 11, height: 11 }} /> Elimina</Button>
-            </div>
+            {(!isDeveloper || detailEvent.user_id === currentUserId) && (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 20 }}>
+                <Button size="sm" variant="ghost" onClick={() => openEdit(detailEvent)}><Pencil style={{ width: 11, height: 11 }} /> Modifica</Button>
+                <Button size="sm" variant="danger" onClick={() => { setDeleteId(detailEvent.id); setDetailEvent(null) }}><Trash2 style={{ width: 11, height: 11 }} /> Elimina</Button>
+              </div>
+            )}
           </div>
         )}
       </Modal>

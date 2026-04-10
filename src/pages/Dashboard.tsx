@@ -4,9 +4,9 @@ import type { Page } from '../components/layout/Sidebar'
 import type { StatoProgetto, StatoTask, SpesaRicorrente } from '../types'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useCurrentRole } from '../hooks/useCurrentRole'
 
 const BRAND = '#005DEF'
-const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
 /* ─── Types ─── */
 
@@ -157,6 +157,9 @@ const ChartTooltipStyle = {
 interface DashboardProps { onNavigate: (p: Page) => void }
 
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
+  const { role, loading: roleLoading } = useCurrentRole()
+  const isAdmin = role === 'admin'
+  const isDeveloper = role === 'developer'
   const [stats, setStats] = useState<Stats | null>(null)
   const [progetti, setProgetti] = useState<RecenteProgetto[]>([])
   const [taskUrgenti, setTaskUrgenti] = useState<TaskItem[]>([])
@@ -165,14 +168,12 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [eventi, setEventi] = useState<EventoItem[]>([])
   const [attivita, setAttivita] = useState<AttivitaItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
+    if (roleLoading) return
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       const userEmail = user?.email ?? null
-      const adminFlag = userEmail === ADMIN_EMAIL
-      setIsAdmin(adminFlag)
 
       const oggi = new Date()
       const oggiISO = oggi.toISOString().split('T')[0]
@@ -182,7 +183,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
 
       const inizioMese = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}-01`
 
-      const mieiTaskQuery = adminFlag
+      const mieiTaskQuery = isAdmin
         ? supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').order('scadenza', { ascending: true }).limit(20)
         : supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').ilike('assegnatario', `%${userEmail}%`).order('scadenza', { ascending: true }).limit(20)
 
@@ -276,7 +277,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [roleLoading, isAdmin])
 
   const isMobile = useIsMobile()
 
@@ -391,12 +392,12 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       )}
 
       {/* ── KPI ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 1, backgroundColor: '#E5E7EB' }}>
-        <StatCard label="Clienti" value={stats.totalClienti} onClick={() => onNavigate('clienti')} compact={isMobile} />
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isDeveloper ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 1, backgroundColor: '#E5E7EB' }}>
+        {!isDeveloper && <StatCard label="Clienti" value={stats.totalClienti} onClick={() => onNavigate('clienti')} compact={isMobile} />}
         <StatCard label="Progetti attivi" value={stats.progettiAttivi} sub={`${pipelineTotal} totali`} onClick={() => onNavigate('progetti')} compact={isMobile} />
         <StatCard label="Task in corso" value={stats.taskInCorso} sub={`${taskTotal} totali`} onClick={() => onNavigate('task')} compact={isMobile} />
-        <StatCard label="Ricavo mensile" value={fmtEur(stats.ricavoMensile)} sub="progetti attivi" compact={isMobile} />
-        <StatCard label="Spese mese" value={fmtEur(stats.speseMese + stats.ricorrentiMese)} sub={`${fmtEur(stats.speseMese)} una tantum + ${fmtEur(stats.ricorrentiMese)} ricorrenti`} compact={isMobile} />
+        {!isDeveloper && <StatCard label="Ricavo mensile" value={fmtEur(stats.ricavoMensile)} sub="progetti attivi" compact={isMobile} />}
+        {!isDeveloper && <StatCard label="Spese mese" value={fmtEur(stats.speseMese + stats.ricorrentiMese)} sub={`${fmtEur(stats.speseMese)} una tantum + ${fmtEur(stats.ricorrentiMese)} ricorrenti`} compact={isMobile} />}
       </div>
 
       {/* ── Charts ── */}
@@ -466,7 +467,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                   {p.cliente && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{p.cliente}</div>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, marginLeft: 12 }}>
-                  {p.pagamento_mensile != null && p.pagamento_mensile > 0 && (
+                  {!isDeveloper && p.pagamento_mensile != null && p.pagamento_mensile > 0 && (
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>{fmtEur(p.pagamento_mensile)}/m</span>
                   )}
                   <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: pipelineColor[p.stato] === '#D1D5DB' ? '#6B7280' : pipelineColor[p.stato] }}>
@@ -542,27 +543,29 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       </div>
 
       {/* ── Attività recente ── */}
-      <Section title="Attività recente">
-        {attivita.length === 0
-          ? <Empty text="Nessuna attività" />
-          : attivita.map((a, i) => (
-            <div key={a.id} style={{ padding: '9px 20px', borderTop: i ? '1px solid #F3F4F6' : 'none', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0, width: 100, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtTime(a.created_at)}
-                <span style={{ marginLeft: 4 }}>{fmtDate(a.created_at)}</span>
-              </span>
-              <div style={{ width: 1, height: 16, backgroundColor: '#E5E7EB', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                <strong style={{ color: '#111827' }}>{a.azione}</strong>
-                {a.dettaglio && <span> — {a.dettaglio}</span>}
+      {!isDeveloper && (
+        <Section title="Attività recente">
+          {attivita.length === 0
+            ? <Empty text="Nessuna attività" />
+            : attivita.map((a, i) => (
+              <div key={a.id} style={{ padding: '9px 20px', borderTop: i ? '1px solid #F3F4F6' : 'none', display: 'flex', alignItems: 'center', gap: 16 }}>
+                <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0, width: 100, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtTime(a.created_at)}
+                  <span style={{ marginLeft: 4 }}>{fmtDate(a.created_at)}</span>
+                </span>
+                <div style={{ width: 1, height: 16, backgroundColor: '#E5E7EB', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <strong style={{ color: '#111827' }}>{a.azione}</strong>
+                  {a.dettaglio && <span> — {a.dettaglio}</span>}
+                </div>
+                {a.progetto_nome && (
+                  <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0 }}>{a.progetto_nome}</span>
+                )}
               </div>
-              {a.progetto_nome && (
-                <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0 }}>{a.progetto_nome}</span>
-              )}
-            </div>
-          ))
-        }
-      </Section>
+            ))
+          }
+        </Section>
+      )}
     </div>
   )
 }

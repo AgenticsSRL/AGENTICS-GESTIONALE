@@ -1,24 +1,38 @@
-import { useEffect, useState } from 'react'
 import { LogOut, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useCurrentRole } from '../../hooks/useCurrentRole'
 import logoWordmark from '../../assets/logo-agentics-wordmark.svg'
 
-export type Page = 'dashboard' | 'clienti' | 'cliente_detail' | 'progetti' | 'progetto_detail' | 'task' | 'task_detail' | 'contabilita' | 'spunti' | 'sicurezza' | 'security_events' | 'calendario' | 'profilo'
+export type Page =
+  | 'dashboard'
+  | 'clienti'
+  | 'cliente_detail'
+  | 'progetti'
+  | 'progetto_detail'
+  | 'task'
+  | 'task_detail'
+  | 'contabilita'
+  | 'spunti'
+  | 'sicurezza'
+  | 'security_events'
+  | 'calendario'
+  | 'profilo'
+  | 'gestione_sviluppatori'
 
 const BRAND = '#005DEF'
-const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
-const navItems: { id: Page; label: string; adminOnly?: boolean }[] = [
-  { id: 'dashboard',    label: 'Dashboard' },
-  { id: 'clienti',      label: 'Clienti' },
-  { id: 'progetti',     label: 'Progetti' },
-  { id: 'task',         label: 'Task' },
-  { id: 'contabilita', label: 'Contabilità' },
-  { id: 'spunti',     label: 'Spunti' },
-  { id: 'sicurezza',       label: 'Sicurezza' },
-  { id: 'security_events', label: 'Security Events', adminOnly: true },
-  { id: 'calendario',      label: 'Calendario' },
-  { id: 'profilo',      label: 'Area Privata' },
+const navItems: { id: Page; label: string; adminOnly?: boolean; developerHidden?: boolean }[] = [
+  { id: 'dashboard',             label: 'Dashboard' },
+  { id: 'clienti',               label: 'Clienti',             developerHidden: true },
+  { id: 'progetti',              label: 'Progetti' },
+  { id: 'task',                  label: 'Task' },
+  { id: 'contabilita',           label: 'Contabilità',         developerHidden: true },
+  { id: 'spunti',                label: 'Spunti' },
+  { id: 'sicurezza',             label: 'Sicurezza',           developerHidden: true },
+  { id: 'security_events',       label: 'Security Events',     adminOnly: true },
+  { id: 'calendario',            label: 'Calendario' },
+  { id: 'gestione_sviluppatori', label: 'Sviluppatori',        adminOnly: true },
+  { id: 'profilo',               label: 'Area Privata' },
 ]
 
 interface SidebarProps {
@@ -28,12 +42,21 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
-  const [isAdmin, setIsAdmin] = useState(false)
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setIsAdmin(user?.email === ADMIN_EMAIL))
-  }, [])
+  const { role, loading: roleLoading } = useCurrentRole()
+  const isAdmin = role === 'admin'
+  const isDeveloper = role === 'developer'
 
-  const visibleItems = navItems.filter(n => !n.adminOnly || isAdmin)
+  const visibleItems = navItems.filter(n => {
+    if (n.adminOnly && !isAdmin) return false
+    if (n.developerHidden && isDeveloper) return false
+    return true
+  })
+
+  // While role is loading, show all non-adminOnly items to avoid flicker
+  const displayItems = roleLoading
+    ? navItems.filter(n => !n.adminOnly)
+    : visibleItems
+
   const isMobileDrawer = !!onClose
 
   return (
@@ -81,12 +104,12 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
         gap: 2,
         overflowY: 'auto',
       }}>
-        {visibleItems.map(({ id, label }) => {
+        {displayItems.map(({ id, label }) => {
           const active =
             current === id ||
-            (id === 'clienti' && current === 'cliente_detail') ||
-            (id === 'progetti' && current === 'progetto_detail') ||
-            (id === 'task' && current === 'task_detail')
+            (id === 'clienti'   && current === 'cliente_detail') ||
+            (id === 'progetti'  && current === 'progetto_detail') ||
+            (id === 'task'      && current === 'task_detail')
           return (
             <button
               key={id}

@@ -61,7 +61,17 @@ function App() {
     const hasVerifiedTotp = factors?.totp?.some(f => f.status === 'verified') ?? false
 
     if (!hasVerifiedTotp) {
-      setAuthState('needs-mfa-enroll')
+      // Developers don't need MFA — skip enrollment
+      const { data: roleRow } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+      if (roleRow?.role === 'developer') {
+        setAuthState('authenticated')
+      } else {
+        setAuthState('needs-mfa-enroll')
+      }
     } else {
       setAuthState('authenticated')
     }

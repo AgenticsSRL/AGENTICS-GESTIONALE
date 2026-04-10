@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Save, Monitor, Smartphone, Tablet, Shield, Clock, Users, FolderOpen, CheckCircle2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { UserProfile, AccessLogEntry } from '../types'
+import { useCurrentRole } from '../hooks/useCurrentRole'
 
 const BRAND = '#005DEF'
 
@@ -80,6 +81,8 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 )
 
 export const ProfiloPage = () => {
+  const { role } = useCurrentRole()
+  const isDeveloper = role === 'developer'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -295,11 +298,15 @@ export const ProfiloPage = () => {
         <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
           <InfoRow label="Email" value={email} />
           <InfoRow label="Registrato il" value={createdAt ? fmtDate(createdAt) : '—'} />
-          <InfoRow
-            label="Autenticazione 2FA"
-            value={mfaActive ? `Attiva — ${mfaApp}` : 'Non attiva'}
-          />
-          {mfaActive && <InfoRow label="2FA attivata il" value={mfaDate} />}
+          {!isDeveloper && (
+            <>
+              <InfoRow
+                label="Autenticazione 2FA"
+                value={mfaActive ? `Attiva — ${mfaApp}` : 'Non attiva'}
+              />
+              {mfaActive && <InfoRow label="2FA attivata il" value={mfaDate} />}
+            </>
+          )}
           <InfoRow label="Accessi totali" value={String(totalAccesses)} />
         </div>
       </section>

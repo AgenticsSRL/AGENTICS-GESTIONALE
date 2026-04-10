@@ -11,6 +11,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { UserPicker } from '../components/ui/UserPicker'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useCurrentRole } from '../hooks/useCurrentRole'
 import {
   notifyTaskAssegnato,
   notifyTaskUrgente,
@@ -45,6 +46,8 @@ interface TaskPageProps {
 
 export const TaskPage = ({ onViewTask }: TaskPageProps) => {
   const isMobile = useIsMobile()
+  const { role } = useCurrentRole()
+  const isDeveloper = role === 'developer'
   const [rows, setRows]           = useState<Task[]>([])
   const [progetti, setProgetti]   = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([])
@@ -203,14 +206,16 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-        <Button onClick={openNew}><Plus className="w-3.5 h-3.5" />Nuovo task</Button>
-      </div>
+      {!isDeveloper && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
+          <Button onClick={openNew}><Plus className="w-3.5 h-3.5" />Nuovo task</Button>
+        </div>
+      )}
 
       {loading
         ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
         : rows.length === 0
-          ? <EmptyState icon={CheckSquare} title="Nessun task" description="Crea il primo task per iniziare." action={{ label: 'Nuovo task', onClick: openNew }} />
+          ? <EmptyState icon={CheckSquare} title="Nessun task" description="Nessun task disponibile." action={isDeveloper ? undefined : { label: 'Nuovo task', onClick: openNew }} />
           : isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
               {rows.map(t => {
@@ -227,7 +232,7 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
                       </div>
                       <div style={{ display: 'flex', gap: 0, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                        {!isDeveloper && <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>}
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
@@ -269,7 +274,7 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
                     <span style={{ fontSize: 13, color: '#4B5563' }}>{t.scadenza ? new Date(t.scadenza).toLocaleDateString('it-IT') : '—'}</span>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => openEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                      {!isDeveloper && <button onClick={() => setDeleteId(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>}
                     </div>
                   </div>
                 )
@@ -279,22 +284,11 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
           )
       }
 
-      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica task' : 'Nuovo task'}>
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica task' : 'Nuovo task'} width={isDeveloper ? '360px' : undefined}>
         <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {errors._form && <p style={{ fontSize: 12, color: '#DC2626' }}>{errors._form}</p>}
-          <FormField label="Titolo" required error={errors.titolo}>
-            <Input value={form.titolo} onChange={f('titolo')} placeholder="Titolo del task" maxLength={200} required />
-          </FormField>
-          <FormField label="Progetto" error={errors.progetto_id}>
-            <Select value={form.progetto_id ?? ''} onChange={f('progetto_id')}>
-              <option value="">— Nessun progetto —</option>
-              {progetti.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </Select>
-          </FormField>
-          <FormField label="Descrizione" error={errors.descrizione}>
-            <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder="Dettagli del task..." maxLength={2000} />
-          </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 16 }}>
+          {isDeveloper ? (
+            // Developer: solo aggiornamento stato
             <FormField label="Stato">
               <Select value={form.stato} onChange={f('stato')}>
                 <option value="todo">Da fare</option>
@@ -303,37 +297,62 @@ export const TaskPage = ({ onViewTask }: TaskPageProps) => {
                 <option value="done">Completato</option>
               </Select>
             </FormField>
-            <FormField label="Priorità">
-              <Select value={form.priorita} onChange={f('priorita')}>
-                <option value="bassa">Bassa</option>
-                <option value="media">Media</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
-              </Select>
-            </FormField>
-            <FormField label="Scadenza">
-              <Input type="date" value={form.scadenza ?? ''} onChange={f('scadenza')} />
-            </FormField>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
-            <FormField label="Assegnatario">
-              <UserPicker
-                single
-                members={orgMembers}
-                value={form.assegnatario ? [form.assegnatario] : []}
-                onChange={emails => setForm(p => ({ ...p, assegnatario: emails[0] ?? null }))}
-                placeholder="Seleziona assegnatario..."
-              />
-            </FormField>
-            <FormField label="Partecipanti">
-              <UserPicker
-                members={orgMembers}
-                value={form.partecipanti ?? []}
-                onChange={emails => setForm(p => ({ ...p, partecipanti: emails }))}
-                placeholder="Aggiungi persone..."
-              />
-            </FormField>
-          </div>
+          ) : (
+            <>
+              <FormField label="Titolo" required error={errors.titolo}>
+                <Input value={form.titolo} onChange={f('titolo')} placeholder="Titolo del task" maxLength={200} required />
+              </FormField>
+              <FormField label="Progetto" error={errors.progetto_id}>
+                <Select value={form.progetto_id ?? ''} onChange={f('progetto_id')}>
+                  <option value="">— Nessun progetto —</option>
+                  {progetti.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </Select>
+              </FormField>
+              <FormField label="Descrizione" error={errors.descrizione}>
+                <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder="Dettagli del task..." maxLength={2000} />
+              </FormField>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 16 }}>
+                <FormField label="Stato">
+                  <Select value={form.stato} onChange={f('stato')}>
+                    <option value="todo">Da fare</option>
+                    <option value="in_progress">In corso</option>
+                    <option value="in_review">In review</option>
+                    <option value="done">Completato</option>
+                  </Select>
+                </FormField>
+                <FormField label="Priorità">
+                  <Select value={form.priorita} onChange={f('priorita')}>
+                    <option value="bassa">Bassa</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                  </Select>
+                </FormField>
+                <FormField label="Scadenza">
+                  <Input type="date" value={form.scadenza ?? ''} onChange={f('scadenza')} />
+                </FormField>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+                <FormField label="Assegnatario">
+                  <UserPicker
+                    single
+                    members={orgMembers}
+                    value={form.assegnatario ? [form.assegnatario] : []}
+                    onChange={emails => setForm(p => ({ ...p, assegnatario: emails[0] ?? null }))}
+                    placeholder="Seleziona assegnatario..."
+                  />
+                </FormField>
+                <FormField label="Partecipanti">
+                  <UserPicker
+                    members={orgMembers}
+                    value={form.partecipanti ?? []}
+                    onChange={emails => setForm(p => ({ ...p, partecipanti: emails }))}
+                    placeholder="Aggiungi persone..."
+                  />
+                </FormField>
+              </div>
+            </>
+          )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
             <Button type="button" variant="ghost" onClick={() => setModal(false)}>Annulla</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Salvataggio...' : 'Salva'}</Button>

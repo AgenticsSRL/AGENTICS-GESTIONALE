@@ -9,6 +9,7 @@ import { Badge }      from '../components/ui/Badge'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useCurrentRole } from '../hooks/useCurrentRole'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { notifyProgettoPipelineAdvance } from '../lib/notifications'
 
@@ -49,6 +50,8 @@ interface Props {
 
 export const ProgettiPage = ({ onViewProgetto }: Props) => {
   const isMobile = useIsMobile()
+  const { role } = useCurrentRole()
+  const isDeveloper = role === 'developer'
   const [rows, setRows]         = useState<Progetto[]>([])
   const [clienti, setClienti]   = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
   const [loading, setLoading]   = useState(true)
@@ -206,14 +209,16 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-        <Button onClick={openNew}><Plus className="w-3.5 h-3.5" />Nuovo progetto</Button>
-      </div>
+      {!isDeveloper && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
+          <Button onClick={openNew}><Plus className="w-3.5 h-3.5" />Nuovo progetto</Button>
+        </div>
+      )}
 
       {loading
         ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
         : rows.length === 0
-          ? <EmptyState icon={FolderOpen} title="Nessun progetto" description="Crea il primo progetto per iniziare." action={{ label: 'Nuovo progetto', onClick: openNew }} />
+          ? <EmptyState icon={FolderOpen} title="Nessun progetto" description="Nessun progetto disponibile." action={isDeveloper ? undefined : { label: 'Nuovo progetto', onClick: openNew }} />
           : isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
               {rows.map(p => {
@@ -228,10 +233,12 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
                         {p.nome}
                         <ChevronRight style={{ width: 12, height: 12, color: '#9CA3AF', flexShrink: 0 }} />
                       </div>
-                      <div style={{ display: 'flex', gap: 0, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
-                      </div>
+                      {!isDeveloper && (
+                        <div style={{ display: 'flex', gap: 0, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                          <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                       <Badge label={b.label} color={b.color} />
@@ -274,10 +281,12 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
                     <div><Badge label={b.label} color={b.color} /></div>
                     <span style={{ fontSize: 12, color: '#4B5563' }}>{periodo}</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: p.pagamento_mensile ? '#1A2332' : '#9CA3AF' }}>{fmtEur(p.pagamento_mensile)}</span>
-                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
+                    {!isDeveloper && (
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    )}
                   </div>
                 )
               })}

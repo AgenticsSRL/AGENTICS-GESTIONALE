@@ -1,48 +1,65 @@
 import { useState } from 'react'
 import { Menu } from 'lucide-react'
 import { Sidebar, type Page } from './Sidebar'
-import { Dashboard }           from '../../pages/Dashboard'
-import { ClientiPage }         from '../../pages/ClientiPage'
-import { ClienteDetailPage }   from '../../pages/ClienteDetailPage'
-import { ProgettiPage }        from '../../pages/ProgettiPage'
-import { ProgettoDetailPage }  from '../../pages/ProgettoDetailPage'
-import { TaskPage }            from '../../pages/TaskPage'
-import { TaskDetailPage }      from '../../pages/TaskDetailPage'
-import { ContabilitaPage }     from '../../pages/ContabilitaPage'
-import { SpuntiPage }          from '../../pages/SpuntiPage'
-import { SicurezzaPage }       from '../../pages/SicurezzaPage'
-import { SecurityEventsPage }  from '../../pages/SecurityEventsPage'
-import { CalendarioPage }     from '../../pages/CalendarioPage'
-import { ProfiloPage }         from '../../pages/ProfiloPage'
-import { useIdleTimeout }      from '../../hooks/useIdleTimeout'
-import { useIsMobile }         from '../../hooks/useIsMobile'
+import { Dashboard }                 from '../../pages/Dashboard'
+import { ClientiPage }               from '../../pages/ClientiPage'
+import { ClienteDetailPage }         from '../../pages/ClienteDetailPage'
+import { ProgettiPage }              from '../../pages/ProgettiPage'
+import { ProgettoDetailPage }        from '../../pages/ProgettoDetailPage'
+import { TaskPage }                  from '../../pages/TaskPage'
+import { TaskDetailPage }            from '../../pages/TaskDetailPage'
+import { ContabilitaPage }           from '../../pages/ContabilitaPage'
+import { SpuntiPage }                from '../../pages/SpuntiPage'
+import { SicurezzaPage }             from '../../pages/SicurezzaPage'
+import { SecurityEventsPage }        from '../../pages/SecurityEventsPage'
+import { CalendarioPage }            from '../../pages/CalendarioPage'
+import { ProfiloPage }               from '../../pages/ProfiloPage'
+import { GestioneSviluppatoriPage }  from '../../pages/GestioneSviluppatoriPage'
+import { ChangePasswordPage }        from '../../pages/ChangePasswordPage'
+import { useIdleTimeout }            from '../../hooks/useIdleTimeout'
+import { useIsMobile }               from '../../hooks/useIsMobile'
+import { useCurrentRole, clearRoleCache } from '../../hooks/useCurrentRole'
 
 const BRAND = '#005DEF'
 
 const pageTitle: Record<Page, string> = {
-  dashboard:        'Dashboard',
-  clienti:          'Clienti',
-  cliente_detail:   'Dettaglio Cliente',
-  progetti:         'Progetti',
-  progetto_detail:  'Dettaglio Progetto',
-  task:             'Task',
-  task_detail:      'Dettaglio Task',
-  contabilita:      'Contabilità',
-  spunti:           'Spunti',
-  sicurezza:        'Sicurezza',
-  security_events:  'Security Events',
-  calendario:       'Calendario',
-  profilo:          'Area Privata',
+  dashboard:               'Dashboard',
+  clienti:                 'Clienti',
+  cliente_detail:          'Dettaglio Cliente',
+  progetti:                'Progetti',
+  progetto_detail:         'Dettaglio Progetto',
+  task:                    'Task',
+  task_detail:             'Dettaglio Task',
+  contabilita:             'Contabilità',
+  spunti:                  'Spunti',
+  sicurezza:               'Sicurezza',
+  security_events:         'Security Events',
+  calendario:              'Calendario',
+  profilo:                 'Area Privata',
+  gestione_sviluppatori:   'Gestione Sviluppatori',
 }
 
 export const Shell = () => {
   useIdleTimeout()
   const isMobile = useIsMobile()
+  const { role, mustChangePassword, loading: roleLoading } = useCurrentRole()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [page, setPage] = useState<Page>('dashboard')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [selectedProgettoId, setSelectedProgettoId] = useState<string | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+
+  // Developer first-login: show password change screen
+  if (!roleLoading && role === 'developer' && mustChangePassword) {
+    return (
+      <ChangePasswordPage
+        onDone={() => {
+          clearRoleCache()
+          window.location.reload()
+        }}
+      />
+    )
+  }
 
   const navigateToCliente = (id: string) => {
     setSelectedClienteId(id)
@@ -66,25 +83,26 @@ export const Shell = () => {
 
   const renderPage = () => {
     switch (page) {
-      case 'dashboard':       return <Dashboard onNavigate={setPage} />
-      case 'clienti':         return <ClientiPage onViewCliente={navigateToCliente} />
-      case 'cliente_detail':  return selectedClienteId
+      case 'dashboard':              return <Dashboard onNavigate={setPage} />
+      case 'clienti':                return <ClientiPage onViewCliente={navigateToCliente} />
+      case 'cliente_detail':         return selectedClienteId
         ? <ClienteDetailPage clienteId={selectedClienteId} onBack={() => setPage('clienti')} />
         : null
-      case 'progetti':        return <ProgettiPage onViewProgetto={navigateToProgetto} />
-      case 'progetto_detail': return selectedProgettoId
+      case 'progetti':               return <ProgettiPage onViewProgetto={navigateToProgetto} />
+      case 'progetto_detail':        return selectedProgettoId
         ? <ProgettoDetailPage progettoId={selectedProgettoId} onBack={() => setPage('progetti')} />
         : null
-      case 'task':            return <TaskPage onViewTask={navigateToTask} />
-      case 'task_detail':     return selectedTaskId
+      case 'task':                   return <TaskPage onViewTask={navigateToTask} />
+      case 'task_detail':            return selectedTaskId
         ? <TaskDetailPage taskId={selectedTaskId} onBack={() => setPage('task')} onNavigateToProgetto={navigateToProgetto} />
         : null
-      case 'contabilita':     return <ContabilitaPage />
-      case 'spunti':          return <SpuntiPage />
-      case 'sicurezza':       return <SicurezzaPage />
-      case 'security_events': return <SecurityEventsPage />
-      case 'calendario':      return <CalendarioPage />
-      case 'profilo':         return <ProfiloPage />
+      case 'contabilita':            return <ContabilitaPage />
+      case 'spunti':                 return <SpuntiPage />
+      case 'sicurezza':              return <SicurezzaPage />
+      case 'security_events':        return <SecurityEventsPage />
+      case 'calendario':             return <CalendarioPage />
+      case 'profilo':                return <ProfiloPage />
+      case 'gestione_sviluppatori':  return <GestioneSviluppatoriPage />
     }
   }
 
