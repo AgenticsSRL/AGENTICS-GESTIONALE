@@ -15,6 +15,7 @@ import { SecurityEventsPage }        from '../../pages/SecurityEventsPage'
 import { CalendarioPage }            from '../../pages/CalendarioPage'
 import { ProfiloPage }               from '../../pages/ProfiloPage'
 import { GestioneSviluppatoriPage }  from '../../pages/GestioneSviluppatoriPage'
+import { GestioneUtentiPage }        from '../../pages/GestioneUtentiPage'
 import { ChangePasswordPage }        from '../../pages/ChangePasswordPage'
 import { useIdleTimeout }            from '../../hooks/useIdleTimeout'
 import { useIsMobile }               from '../../hooks/useIsMobile'
@@ -37,6 +38,7 @@ const pageTitle: Record<Page, string> = {
   calendario:              'Calendario',
   profilo:                 'Area Privata',
   gestione_sviluppatori:   'Gestione Sviluppatori',
+  gestione_utenti:         'Gestione Utenti',
 }
 
 export const Shell = () => {
@@ -103,6 +105,7 @@ export const Shell = () => {
       case 'calendario':             return <CalendarioPage />
       case 'profilo':                return <ProfiloPage />
       case 'gestione_sviluppatori':  return <GestioneSviluppatoriPage />
+      case 'gestione_utenti':        return <GestioneUtentiPage />
     }
   }
 

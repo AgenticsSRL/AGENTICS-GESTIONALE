@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
+import { isMobilePlatform, isBiometricAvailable } from './lib/webauthn'
 import { LoginPage } from './pages/LoginPage'
 import { TotpEnrollPage } from './pages/TotpEnrollPage'
 import { TotpVerifyPage } from './pages/TotpVerifyPage'
+import { BiometricEnrollPage } from './pages/BiometricEnrollPage'
+import { BiometricVerifyPage } from './pages/BiometricVerifyPage'
 import { Shell } from './components/layout/Shell'
 
 type AuthState =
@@ -11,6 +14,8 @@ type AuthState =
   | 'unauthenticated'
   | 'needs-mfa-enroll'
   | 'needs-mfa-verify'
+  | 'needs-biometric-enroll'
+  | 'needs-biometric-verify'
   | 'authenticated'
 
 const ACCESS_LOG_KEY = 'access_logged'
@@ -48,7 +53,13 @@ function App() {
     const { currentLevel, nextLevel } = data
 
     if (nextLevel === 'aal2' && currentLevel !== 'aal2') {
-      setAuthState('needs-mfa-verify')
+      const mobile = isMobilePlatform()
+      if (mobile && await isBiometricAvailable()) {
+        const { data: creds } = await supabase.from('webauthn_credentials').select('id').limit(1)
+        setAuthState(creds && creds.length > 0 ? 'needs-biometric-verify' : 'needs-mfa-verify')
+      } else {
+        setAuthState('needs-mfa-verify')
+      }
       return
     }
 
@@ -70,7 +81,12 @@ function App() {
       if (roleRow?.role === 'developer') {
         setAuthState('authenticated')
       } else {
-        setAuthState('needs-mfa-enroll')
+        const mobile = isMobilePlatform()
+        if (mobile && await isBiometricAvailable()) {
+          setAuthState('needs-biometric-enroll')
+        } else {
+          setAuthState('needs-mfa-enroll')
+        }
       }
     } else {
       setAuthState('authenticated')
@@ -104,6 +120,8 @@ function App() {
   if (authState === 'unauthenticated') return <LoginPage />
   if (authState === 'needs-mfa-enroll') return <TotpEnrollPage />
   if (authState === 'needs-mfa-verify') return <TotpVerifyPage />
+  if (authState === 'needs-biometric-enroll') return <BiometricEnrollPage />
+  if (authState === 'needs-biometric-verify') return <BiometricVerifyPage />
   return <Shell />
 }
 

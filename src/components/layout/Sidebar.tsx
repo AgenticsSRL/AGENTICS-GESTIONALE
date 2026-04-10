@@ -18,6 +18,7 @@ export type Page =
   | 'calendario'
   | 'profilo'
   | 'gestione_sviluppatori'
+  | 'gestione_utenti'
 
 const BRAND = '#005DEF'
 
@@ -32,6 +33,7 @@ const navItems: { id: Page; label: string; adminOnly?: boolean; developerHidden?
   { id: 'security_events',       label: 'Security Events',     adminOnly: true },
   { id: 'calendario',            label: 'Calendario' },
   { id: 'gestione_sviluppatori', label: 'Sviluppatori',        adminOnly: true },
+  { id: 'gestione_utenti',       label: 'Gestione Utenti',     adminOnly: true },
   { id: 'profilo',               label: 'Area Privata' },
 ]
 
