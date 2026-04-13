@@ -117,6 +117,7 @@ export const GestioneSviluppatoriPage = () => {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify(body),
       }
@@ -144,17 +145,20 @@ export const GestioneSviluppatoriPage = () => {
       return
     }
 
-    // Save lingua using user_id returned from edge function (more reliable than email)
-    await supabase
-      .from('developer_profiles')
-      .update({ lingua: inviteLingua })
-      .eq('user_id', result.user_id)
+    // Save lingua using user_id returned from edge function
+    try {
+      await supabase
+        .from('developer_profiles')
+        .update({ lingua: inviteLingua })
+        .eq('user_id', result.user_id)
+    } catch { /* non-blocking */ }
 
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     const adminEmail = currentUser?.email ?? 'lorenzo@agentics.eu.com'
     const now = new Date().toLocaleDateString(inviteLingua === 'en' ? 'en-GB' : 'it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
     const isEn = inviteLingua === 'en'
 
+    // Fire-and-forget: don't block UI on notification
     sendNotification({
       to: [adminEmail],
       subject: isEn

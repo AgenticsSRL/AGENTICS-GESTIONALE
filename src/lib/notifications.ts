@@ -264,14 +264,24 @@ export function buildEmailHtml(p: EmailParams): string {
 export async function sendNotification(payload: NotificationPayload): Promise<void> {
   try {
     const html = buildEmailHtml(payload.params)
-    const { error } = await supabase.functions.invoke('send-notification', {
-      body: {
-        to: payload.to,
-        subject: payload.subject,
-        html,
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(
+      `${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: (import.meta as any).env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          to: payload.to,
+          subject: payload.subject,
+          html,
+        }),
       },
-    })
-    if (error) console.error('[notifications] send error:', error)
+    )
+    if (!res.ok) console.error('[notifications] send error:', res.status, await res.text())
   } catch (err) {
     console.error('[notifications] unexpected error:', err)
   }
