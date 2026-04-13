@@ -94,6 +94,8 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
       responsabile: p.responsabile, team: p.team ?? [],
       priorita_progetto: p.priorita_progetto ?? 'media',
       marginalita_stimata: p.marginalita_stimata,
+      commerciale: p.commerciale ?? null,
+      percentuale_commissione: p.percentuale_commissione ?? null,
       link_demo: p.link_demo ?? null,
       link_deploy: p.link_deploy ?? null,
     })
@@ -197,6 +199,14 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
               </FormField>
               <FormField label={t('projects.manager')} error={errors.responsabile}>
                 <Input value={form.responsabile ?? ''} onChange={f('responsabile')} placeholder={t('projects.manager_ph')} />
+              </FormField>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+              <FormField label="Commerciale" error={errors.commerciale} hint="Nome del commerciale che ha chiuso il contratto">
+                <Input value={form.commerciale ?? ''} onChange={f('commerciale')} placeholder="Es. Mario Rossi" />
+              </FormField>
+              <FormField label="% Commissione" error={errors.percentuale_commissione} hint="Percentuale sul pagamento mensile">
+                <Input type="number" step="0.1" min="0" max="100" value={form.percentuale_commissione ?? ''} onChange={f('percentuale_commissione')} placeholder="Es. 10" />
               </FormField>
             </div>
           </>

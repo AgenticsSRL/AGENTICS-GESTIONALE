@@ -144,37 +144,51 @@ export const GestioneSviluppatoriPage = () => {
       return
     }
 
-    if (inviteLingua !== 'it') {
-      await supabase
-        .from('developer_profiles')
-        .update({ lingua: inviteLingua })
-        .eq('email', result.email)
-    }
+    // Save lingua using user_id returned from edge function (more reliable than email)
+    await supabase
+      .from('developer_profiles')
+      .update({ lingua: inviteLingua })
+      .eq('user_id', result.user_id)
 
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     const adminEmail = currentUser?.email ?? 'lorenzo@agentics.eu.com'
-    const now = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
+    const now = new Date().toLocaleDateString(inviteLingua === 'en' ? 'en-GB' : 'it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
+    const isEn = inviteLingua === 'en'
 
     sendNotification({
       to: [adminEmail],
-      subject: `Nuovo sviluppatore creato: ${result.email}`,
+      subject: isEn
+        ? `New developer created: ${result.email}`
+        : `Nuovo sviluppatore creato: ${result.email}`,
       params: {
-        notification_label: 'NUOVO SVILUPPATORE',
-        email_title: 'Account developer creato',
-        email_subtitle: `Credenziali iniziali per ${result.email}`,
+        notification_label: isEn ? 'NEW DEVELOPER' : 'NUOVO SVILUPPATORE',
+        email_title: isEn ? 'Developer account created' : 'Account developer creato',
+        email_subtitle: isEn
+          ? `Initial credentials for ${result.email}`
+          : `Credenziali iniziali per ${result.email}`,
         recipient_name: 'Admin',
-        intro_text: `È stato creato un nuovo account sviluppatore nel gestionale. Di seguito le credenziali iniziali. La password dovrà essere cambiata al primo accesso.`,
-        update_type: 'Account Creato',
+        intro_text: isEn
+          ? 'A new developer account has been created. Below are the initial credentials. The password must be changed on first login.'
+          : 'È stato creato un nuovo account sviluppatore nel gestionale. Di seguito le credenziali iniziali. La password dovrà essere cambiata al primo accesso.',
+        update_type: isEn ? 'Account Created' : 'Account Creato',
         subject: result.email,
-        reference_code: `Lingua: ${inviteLingua === 'en' ? 'English' : 'Italiano'}`,
+        reference_code: `${isEn ? 'Language' : 'Lingua'}: ${isEn ? 'English' : 'Italiano'}`,
         date: now,
-        status: 'Attivo',
-        message_body: `<strong>Email:</strong> ${result.email}<br><br><strong>Password temporanea:</strong> ${result.temp_password}<br><br>Lo sviluppatore dovrà cambiare la password al primo accesso e configurare l'autenticazione a due fattori.`,
-        next_steps: 'Comunica le credenziali allo sviluppatore in modo sicuro. Al primo login gli verrà richiesto di impostare una nuova password.',
+        status: isEn ? 'Active' : 'Attivo',
+        message_body: isEn
+          ? `<strong>Email:</strong> ${result.email}<br><br><strong>Temporary password:</strong> ${result.temp_password}<br><br>The developer must change the password on first login and set up two-factor authentication.`
+          : `<strong>Email:</strong> ${result.email}<br><br><strong>Password temporanea:</strong> ${result.temp_password}<br><br>Lo sviluppatore dovrà cambiare la password al primo accesso e configurare l'autenticazione a due fattori.`,
+        next_steps: isEn
+          ? 'Share the credentials with the developer securely. On first login they will be asked to set a new password.'
+          : 'Comunica le credenziali allo sviluppatore in modo sicuro. Al primo login gli verrà richiesto di impostare una nuova password.',
         cta_url: 'https://agenticsrl.com',
-        cta_label: 'Apri il Gestionale →',
-        secondary_note: 'Questa email contiene credenziali sensibili. Non inoltrarla.',
-        footer_text: 'Notifica automatica creazione account — gestionale Agentics.',
+        cta_label: isEn ? 'Open Dashboard →' : 'Apri il Gestionale →',
+        secondary_note: isEn
+          ? 'This email contains sensitive credentials. Do not forward it.'
+          : 'Questa email contiene credenziali sensibili. Non inoltrarla.',
+        footer_text: isEn
+          ? 'Automatic notification — account creation — Agentics dashboard.'
+          : 'Notifica automatica creazione account — gestionale Agentics.',
       },
     })
 

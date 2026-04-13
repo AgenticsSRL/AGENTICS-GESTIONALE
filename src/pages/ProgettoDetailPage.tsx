@@ -313,6 +313,8 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
       team: progetto.team ?? [],
       priorita_progetto: progetto.priorita_progetto ?? 'media',
       marginalita_stimata: progetto.marginalita_stimata,
+      commerciale: progetto.commerciale ?? '',
+      percentuale_commissione: progetto.percentuale_commissione,
       link_demo: progetto.link_demo ?? '',
       link_deploy: progetto.link_deploy ?? '',
     })
@@ -500,6 +502,14 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
             </FormField>
             <FormField label="Marginalità stimata (%)" error={editErrors.marginalita_stimata}>
               <Input type="number" step="0.1" value={(editForm.marginalita_stimata as number) ?? ''} onChange={ef('marginalita_stimata')} />
+            </FormField>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+            <FormField label="Commerciale" error={editErrors.commerciale} hint="Chi ha chiuso il contratto">
+              <Input value={(editForm.commerciale as string) ?? ''} onChange={ef('commerciale')} placeholder="Es. Mario Rossi" />
+            </FormField>
+            <FormField label="% Commissione" error={editErrors.percentuale_commissione} hint="Percentuale sul pagamento mensile">
+              <Input type="number" step="0.1" min="0" max="100" value={(editForm.percentuale_commissione as number) ?? ''} onChange={ef('percentuale_commissione')} placeholder="Es. 10" />
             </FormField>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
@@ -701,6 +711,13 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
               </span>
             } />
             <InfoRow label="Marginalità stimata" value={progetto.marginalita_stimata != null ? `${progetto.marginalita_stimata}%` : '—'} />
+            <InfoRow label="Commerciale" value={progetto.commerciale ?? '—'} />
+            {progetto.commerciale && progetto.percentuale_commissione != null && (
+              <InfoRow
+                label="Commissione"
+                value={`${progetto.percentuale_commissione}% = ${fmtEur((ricavoMensile * progetto.percentuale_commissione) / 100)}/mese`}
+              />
+            )}
           </div>
         </Card>
       </div>

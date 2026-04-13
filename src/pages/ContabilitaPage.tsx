@@ -66,15 +66,19 @@ export const ContabilitaPage = () => {
   const [deleteId, setDeleteId]   = useState<string | null>(null)
   const [errors, setErrors]       = useState<ValidationErrors>({})
 
+  const [progettiCommerciali, setProgettiCommerciali] = useState<{ commerciale: string; pagamento_mensile: number | null; percentuale_commissione: number | null }[]>([])
+
   const load = async () => {
-    const [{ data: sp }, { data: pr }, { data: prRic }] = await Promise.all([
+    const [{ data: sp }, { data: pr }, { data: prRic }, { data: prComm }] = await Promise.all([
       supabase.from('spese').select('*, progetti(nome)').order('data', { ascending: false }),
       supabase.from('progetti').select('id, nome').order('nome'),
       supabase.from('progetti').select('id, nome, spese_ricorrenti'),
+      supabase.from('progetti').select('commerciale, pagamento_mensile, percentuale_commissione').not('commerciale', 'is', null),
     ])
     setSpese(sp ?? [])
     setProgetti(pr ?? [])
     setProgettiRic(prRic ?? [])
+    setProgettiCommerciali(prComm ?? [])
     setLoading(false)
   }
 
@@ -212,6 +216,55 @@ export const ContabilitaPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Pannello commerciali */}
+      {(() => {
+        // Aggrega per commerciale
+        const byComm: Record<string, { progetti: number; ricavoMensile: number; commissione: number }> = {}
+        for (const p of progettiCommerciali) {
+          if (!p.commerciale) continue
+          const ricavo = p.pagamento_mensile ?? 0
+          const comm = p.percentuale_commissione != null ? (ricavo * p.percentuale_commissione) / 100 : 0
+          if (!byComm[p.commerciale]) byComm[p.commerciale] = { progetti: 0, ricavoMensile: 0, commissione: 0 }
+          byComm[p.commerciale].progetti += 1
+          byComm[p.commerciale].ricavoMensile += ricavo
+          byComm[p.commerciale].commissione += comm
+        }
+        const entries = Object.entries(byComm)
+        if (entries.length === 0) return null
+        return (
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #E5E7EB' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1A2332' }}>Per commerciale</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ minWidth: 480 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '8px 20px', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                  {['Commerciale', 'Progetti', 'Ricavo / mese', 'Commissione / mese'].map(h => (
+                    <span key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
+                  ))}
+                </div>
+                {entries.map(([nome, data]) => (
+                  <div key={nome} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '12px 20px', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{nome}</span>
+                    <span style={{ fontSize: 13, color: '#4B5563' }}>{data.progetti}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{fmtEur(data.ricavoMensile)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: BRAND }}>{fmtEur(data.commissione)}</span>
+                  </div>
+                ))}
+                {entries.length > 1 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '10px 20px', borderTop: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1A2332' }}>Totale</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#4B5563' }}>{entries.reduce((s, [, d]) => s + d.progetti, 0)}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1A2332' }}>{fmtEur(entries.reduce((s, [, d]) => s + d.ricavoMensile, 0))}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: BRAND }}>{fmtEur(entries.reduce((s, [, d]) => s + d.commissione, 0))}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Filter tabs + button */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: isMobile ? 8 : 0 }}>
