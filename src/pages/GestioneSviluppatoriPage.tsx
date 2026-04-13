@@ -109,39 +109,17 @@ export const GestioneSviluppatoriPage = () => {
   useEffect(() => { load() }, [load])
 
   const callEdgeFunction = async (body: object) => {
-    // Get a fresh token: refreshSession returns the new session directly
-    const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession()
-    let token = refreshData?.session?.access_token
-
-    // Fallback: if refresh failed, try getSession (might still have a valid cached token)
-    if (!token) {
-      const { data: { session } } = await supabase.auth.getSession()
-      token = session?.access_token
+    // #region agent log
+    console.log('[DEBUG-5e512b] callEdgeFunction: using supabase.functions.invoke');
+    // #endregion
+    const { data, error } = await supabase.functions.invoke('manage-developer', { body })
+    // #region agent log
+    console.log('[DEBUG-5e512b] manage-developer result', { data, error: error?.message ?? null });
+    // #endregion
+    if (error) {
+      return { ok: false, error: error.message }
     }
-
-    // #region agent log
-    const exp = token ? JSON.parse(atob(token.split('.')[1])).exp : null;
-    const nowSec = Math.floor(Date.now() / 1000);
-    console.log('[DEBUG-5e512b] callEdgeFunction', { hasToken: !!token, refreshErr: refreshErr?.message ?? null, tokenExp: exp, nowSec, secondsLeft: exp ? exp - nowSec : null });
-    // #endregion
-
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-developer`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify(body),
-      }
-    )
-    // #region agent log
-    console.log('[DEBUG-5e512b] manage-developer response', { status: res.status, ok: res.ok });
-    if (!res.ok) { const t = await res.clone().text(); console.log('[DEBUG-5e512b] manage-developer error body', t); }
-    // #endregion
-    return res.json()
+    return data
   }
 
   const handleInvite = async (e: React.FormEvent) => {

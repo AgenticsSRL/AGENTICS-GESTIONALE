@@ -264,39 +264,16 @@ export function buildEmailHtml(p: EmailParams): string {
 export async function sendNotification(payload: NotificationPayload): Promise<void> {
   try {
     const html = buildEmailHtml(payload.params)
-
-    // Get fresh token
-    const { data: refreshData } = await supabase.auth.refreshSession()
-    let token = refreshData?.session?.access_token
-    if (!token) {
-      const { data: { session } } = await supabase.auth.getSession()
-      token = session?.access_token
-    }
-
     // #region agent log
-    console.log('[DEBUG-5e512b] sendNotification', { hasToken: !!token, to: payload.to });
+    console.log('[DEBUG-5e512b] sendNotification', { to: payload.to });
     // #endregion
-
-    const res = await fetch(
-      `${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          apikey: (import.meta as any).env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({
-          to: payload.to,
-          subject: payload.subject,
-          html,
-        }),
-      },
-    )
+    const { error } = await supabase.functions.invoke('send-notification', {
+      body: { to: payload.to, subject: payload.subject, html },
+    })
     // #region agent log
-    console.log('[DEBUG-5e512b] sendNotification response', { status: res.status, ok: res.ok });
+    console.log('[DEBUG-5e512b] sendNotification result', { error: error?.message ?? null });
     // #endregion
-    if (!res.ok) console.error('[notifications] send error:', res.status, await res.text())
+    if (error) console.error('[notifications] send error:', error)
   } catch (err) {
     console.error('[notifications] unexpected error:', err)
   }
