@@ -264,15 +264,9 @@ export function buildEmailHtml(p: EmailParams): string {
 export async function sendNotification(payload: NotificationPayload): Promise<void> {
   try {
     const html = buildEmailHtml(payload.params)
-    // #region agent log
-    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'notifications.ts:sendNotification',message:'sending',data:{to:payload.to,hypothesisId:'H2'},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     const { error } = await supabase.functions.invoke('send-notification', {
       body: { to: payload.to, subject: payload.subject, html },
     })
-    // #region agent log
-    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'notifications.ts:sendNotification',message:'result',data:{errorMsg:error?.message??null,hypothesisId:'H2'},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (error) console.error('[notifications] send error:', error)
   } catch (err) {
     console.error('[notifications] unexpected error:', err)
