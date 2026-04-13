@@ -87,7 +87,7 @@ export const ProfiloPage = () => {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [email, setEmail] = useState('')
-  const [userId, setUserId] = useState('')
+  const [, setUserId] = useState('')
   const [createdAt, setCreatedAt] = useState('')
   const [mfaActive, setMfaActive] = useState(false)
   const [mfaApp, setMfaApp] = useState('')

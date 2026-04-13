@@ -133,8 +133,8 @@ export const GestioneSviluppatoriPage = () => {
   const [infoCognome, setInfoCognome] = useState('')
   const [infoTelefono, setInfoTelefono] = useState('')
   const [infoTitolo, setInfoTitolo] = useState('')
-  const [infoAzienda, setInfoAzienda] = useState('')
-  const [infoPartitaIva, setInfoPartitaIva] = useState('')
+  const [, setInfoAzienda] = useState('')
+  const [, setInfoPartitaIva] = useState('')
   const [infoSaving, setInfoSaving] = useState(false)
 
   const load = useCallback(async () => {
