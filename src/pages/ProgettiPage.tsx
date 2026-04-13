@@ -44,7 +44,7 @@ interface Props {
 
 export const ProgettiPage = ({ onViewProgetto }: Props) => {
   const isMobile = useIsMobile()
-  const { role } = useCurrentRole()
+  const { role, loading: roleLoading } = useCurrentRole()
   const t = useT()
   const isDeveloper = role === 'developer'
 
@@ -66,6 +66,19 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
   const [errors, setErrors]     = useState<ValidationErrors>({})
 
   const load = async () => {
+    if (isDeveloper) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data, error } = await supabase
+        .from('progetti')
+        .select('*, clienti(nome), project_members!inner(user_id)')
+        .eq('project_members.user_id', user.id)
+        .order('created_at', { ascending: false })
+      if (error) { console.error(safeErrorMessage(error)); return }
+      setRows(data ?? [])
+      setLoading(false)
+      return
+    }
     const [{ data, error }, { data: cli }] = await Promise.all([
       supabase.from('progetti').select('*, clienti(nome)').order('created_at', { ascending: false }),
       supabase.from('clienti').select('id, nome').order('nome'),
@@ -76,7 +89,9 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (!roleLoading) load()
+  }, [roleLoading]) // aspetta che il ruolo sia risolto prima di caricare
 
   const openNew = () => {
     setEditing(null)

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Monitor, Smartphone, Tablet, Shield, Clock, Users, FolderOpen, CheckCircle2, CheckSquare } from 'lucide-react'
+import { Monitor, Smartphone, Tablet, Shield, Clock, Users, FolderOpen, CheckCircle2, CheckSquare, Pencil, X, Save } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { isMobilePlatform } from '../lib/webauthn'
 import type { AccessLogEntry, Task, StatoTask, PrioritaTask } from '../types'
@@ -87,6 +87,7 @@ export const ProfiloPage = () => {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [email, setEmail] = useState('')
+  const [userId, setUserId] = useState('')
   const [createdAt, setCreatedAt] = useState('')
   const [mfaActive, setMfaActive] = useState(false)
   const [mfaApp, setMfaApp] = useState('')
@@ -98,11 +99,17 @@ export const ProfiloPage = () => {
   const [stats, setStats] = useState<Stats>({ ...emptyStats })
   const [myTasks, setMyTasks] = useState<Task[]>([])
 
+  // Edit profile
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState<ProfileData>({ nome: null, cognome: null, telefono: null, ruolo: null, azienda: null, partita_iva: null })
+  const [editSaving, setEditSaving] = useState(false)
+
   const loadProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     setEmail(user.email ?? '')
+    setUserId(user.id)
     setCreatedAt(user.created_at ?? '')
 
     const { data } = await supabase
@@ -112,16 +119,36 @@ export const ProfiloPage = () => {
       .maybeSingle()
 
     if (data) {
-      setProfile({
+      const p: ProfileData = {
         nome: data.nome ?? null,
         cognome: data.cognome ?? null,
         telefono: data.telefono ?? null,
         ruolo: data.ruolo ?? null,
         azienda: data.azienda ?? null,
         partita_iva: data.partita_iva ?? null,
-      })
+      }
+      setProfile(p)
+      setEditForm(p)
     }
   }, [])
+
+  const saveProfile = async () => {
+    setEditSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setEditSaving(false); return }
+    await supabase.from('user_profiles').upsert({
+      user_id: user.id,
+      nome: editForm.nome?.trim() || null,
+      cognome: editForm.cognome?.trim() || null,
+      telefono: editForm.telefono?.trim() || null,
+      ruolo: editForm.ruolo?.trim() || null,
+      azienda: editForm.azienda?.trim() || null,
+      partita_iva: editForm.partita_iva?.trim() || null,
+    }, { onConflict: 'user_id' })
+    setEditSaving(false)
+    setEditMode(false)
+    loadProfile()
+  }
 
   const loadMfa = useCallback(async () => {
     const { data } = await supabase.auth.mfa.listFactors()
@@ -227,23 +254,93 @@ export const ProfiloPage = () => {
 
       {/* ── Profilo ── */}
       <section>
-        <SectionHeader title={t('profile.title')} subtitle={t('profile.subtitle')} />
-        <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
-          {profile ? (
-            <>
-              <InfoRow label={t('profile.name')} value={profile.nome ?? '—'} />
-              <InfoRow label={t('profile.surname')} value={profile.cognome ?? '—'} />
-              <InfoRow label={t('profile.phone')} value={profile.telefono ?? '—'} />
-              <InfoRow label={t('profile.role')} value={profile.ruolo ?? '—'} />
-              <InfoRow label={t('profile.company')} value={profile.azienda ?? '—'} />
-              <InfoRow label={t('profile.vat')} value={profile.partita_iva ?? '—'} />
-            </>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <h3 className="text-xs font-bold tracking-widest uppercase" style={{ color: BRAND, letterSpacing: '0.08em' }}>{t('profile.title')}</h3>
+            <p className="text-xs mt-1" style={{ color: '#6C7F94' }}>{t('profile.subtitle')}</p>
+          </div>
+          {!editMode ? (
+            <button
+              onClick={() => { setEditForm(profile ?? { nome: null, cognome: null, telefono: null, ruolo: null, azienda: null, partita_iva: null }); setEditMode(true) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: BRAND, background: 'none', border: `1px solid ${BRAND}`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
+            >
+              <Pencil style={{ width: 12, height: 12 }} />
+              Modifica
+            </button>
           ) : (
-            <div style={{ padding: '24px 20px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
-              {t('profile.not_configured')}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setEditMode(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#6C7F94', background: 'none', border: '1px solid #E5E7EB', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
+              >
+                <X style={{ width: 12, height: 12 }} />
+                Annulla
+              </button>
+              <button
+                onClick={saveProfile}
+                disabled={editSaving}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#fff', background: BRAND, border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', opacity: editSaving ? 0.7 : 1 }}
+              >
+                <Save style={{ width: 12, height: 12 }} />
+                {editSaving ? 'Salvataggio...' : 'Salva'}
+              </button>
             </div>
           )}
         </div>
+
+        {editMode ? (
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{t('profile.name')}</label>
+                <input value={editForm.nome ?? ''} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome" style={{ width: '100%', fontSize: 13, border: '1px solid #E5E7EB', borderRadius: 6, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.currentTarget.style.borderColor = BRAND)} onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{t('profile.surname')}</label>
+                <input value={editForm.cognome ?? ''} onChange={e => setEditForm(f => ({ ...f, cognome: e.target.value }))} placeholder="Cognome" style={{ width: '100%', fontSize: 13, border: '1px solid #E5E7EB', borderRadius: 6, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.currentTarget.style.borderColor = BRAND)} onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{t('profile.phone')}</label>
+                <input type="tel" value={editForm.telefono ?? ''} onChange={e => setEditForm(f => ({ ...f, telefono: e.target.value }))} placeholder="+39 333 1234567" style={{ width: '100%', fontSize: 13, border: '1px solid #E5E7EB', borderRadius: 6, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.currentTarget.style.borderColor = BRAND)} onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{t('profile.role')}</label>
+                <input value={editForm.ruolo ?? ''} onChange={e => setEditForm(f => ({ ...f, ruolo: e.target.value }))} placeholder="Es. Frontend Developer" style={{ width: '100%', fontSize: 13, border: '1px solid #E5E7EB', borderRadius: 6, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.currentTarget.style.borderColor = BRAND)} onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')} />
+              </div>
+            </div>
+            {!isDeveloper && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{t('profile.company')}</label>
+                  <input value={editForm.azienda ?? ''} onChange={e => setEditForm(f => ({ ...f, azienda: e.target.value }))} placeholder="Nome azienda" style={{ width: '100%', fontSize: 13, border: '1px solid #E5E7EB', borderRadius: 6, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.currentTarget.style.borderColor = BRAND)} onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{t('profile.vat')}</label>
+                  <input value={editForm.partita_iva ?? ''} onChange={e => setEditForm(f => ({ ...f, partita_iva: e.target.value }))} placeholder="IT12345678901" style={{ width: '100%', fontSize: 13, border: '1px solid #E5E7EB', borderRadius: 6, padding: '9px 12px', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.currentTarget.style.borderColor = BRAND)} onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')} />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
+            {profile ? (
+              <>
+                <InfoRow label={t('profile.name')} value={profile.nome ?? '—'} />
+                <InfoRow label={t('profile.surname')} value={profile.cognome ?? '—'} />
+                <InfoRow label={t('profile.phone')} value={profile.telefono ?? '—'} />
+                <InfoRow label={t('profile.role')} value={profile.ruolo ?? '—'} />
+                {!isDeveloper && <InfoRow label={t('profile.company')} value={profile.azienda ?? '—'} />}
+                {!isDeveloper && <InfoRow label={t('profile.vat')} value={profile.partita_iva ?? '—'} />}
+              </>
+            ) : (
+              <div style={{ padding: '24px 20px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
+                {t('profile.not_configured')}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* ── Info Account ── */}

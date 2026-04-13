@@ -195,13 +195,15 @@ export const CalendarioPage = () => {
   const loadEventi = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     setCurrentUserId(user?.id ?? null)
-    const { data } = await supabase
-      .from('calendario_eventi')
-      .select('*')
-      .order('data_inizio', { ascending: true })
+    let query = supabase.from('calendario_eventi').select('*').order('data_inizio', { ascending: true })
+    if (isDeveloper && user?.id && user.email) {
+      // Vede solo eventi in cui è creatore o partecipante
+      query = query.or(`user_id.eq.${user.id},partecipanti.ilike.*${user.email}*`)
+    }
+    const { data } = await query
     setEventi(data ?? [])
     setLoading(false)
-  }, [])
+  }, [isDeveloper])
 
   useEffect(() => { loadEventi() }, [loadEventi])
 

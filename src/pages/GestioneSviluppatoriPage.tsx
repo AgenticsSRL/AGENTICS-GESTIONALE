@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Trash2, UserCheck, Copy, Check, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, UserCheck, Copy, Check, RefreshCw, User, Activity, Monitor, Smartphone, Tablet } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { safeErrorMessage } from '../lib/errors'
 import { sendNotification } from '../lib/notifications'
@@ -10,13 +10,46 @@ import { EmptyState } from '../components/ui/EmptyState'
 
 const BRAND = '#005DEF'
 
+type LogTab = 'accessi' | 'attivita' | 'task'
+
 interface Developer {
   user_id: string
   email: string
   must_change_password: boolean
   lingua: 'it' | 'en'
   created_at: string
+  last_access: string | null
+  total_accesses: number
   projects: { id: string; nome: string }[]
+  nome: string | null
+  cognome: string | null
+  telefono: string | null
+  titolo: string | null
+}
+
+interface AccessEntry {
+  id: string
+  logged_in_at: string
+  ip_address: string | null
+  user_agent: string | null
+}
+
+interface AttivitaEntry {
+  id: string
+  azione: string
+  dettaglio: string | null
+  created_at: string
+  progetto_nome: string | null
+}
+
+interface TaskEntry {
+  id: string
+  titolo: string
+  stato: string
+  priorita: string
+  scadenza: string | null
+  updated_at: string
+  progetto_nome: string | null
 }
 
 interface Progetto {
@@ -27,6 +60,35 @@ interface Progetto {
 interface InviteResult {
   email: string
   temp_password: string
+}
+
+/* ─── Helpers ─── */
+
+function parseDevice(ua: string | null): { label: string; Icon: typeof Monitor } {
+  if (!ua) return { label: 'Sconosciuto', Icon: Monitor }
+  const l = ua.toLowerCase()
+  if (/mobile|android|iphone/.test(l)) return { label: 'Mobile', Icon: Smartphone }
+  if (/ipad|tablet/.test(l)) return { label: 'Tablet', Icon: Tablet }
+  return { label: 'Desktop', Icon: Monitor }
+}
+
+function parseBrowser(ua: string | null): string {
+  if (!ua) return '—'
+  if (ua.includes('Edg/')) return 'Edge'
+  if (ua.includes('Chrome/')) return 'Chrome'
+  if (ua.includes('Firefox/')) return 'Firefox'
+  if (ua.includes('Safari/') && !ua.includes('Chrome')) return 'Safari'
+  return 'Browser'
+}
+
+const fmtDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+const statoColor: Record<string, string> = {
+  todo: '#9CA3AF', in_progress: '#3B82F6', in_review: '#7C3AED', done: '#16A34A',
+}
+const prioritaColor: Record<string, string> = {
+  bassa: '#9CA3AF', media: '#D97706', alta: '#2563EB', urgente: '#DC2626',
 }
 
 export const GestioneSviluppatoriPage = () => {
@@ -55,6 +117,26 @@ export const GestioneSviluppatoriPage = () => {
   const [revokeEmail, setRevokeEmail] = useState('')
   const [revoking, setRevoking] = useState(false)
 
+  // Log modal
+  const [logModal, setLogModal] = useState(false)
+  const [logDev, setLogDev] = useState<Developer | null>(null)
+  const [logTab, setLogTab] = useState<LogTab>('accessi')
+  const [logAccessi, setLogAccessi] = useState<AccessEntry[]>([])
+  const [logAttivita, setLogAttivita] = useState<AttivitaEntry[]>([])
+  const [logTask, setLogTask] = useState<TaskEntry[]>([])
+  const [logLoading, setLogLoading] = useState(false)
+
+  // Info (profile) modal
+  const [infoModal, setInfoModal] = useState(false)
+  const [infoDev, setInfoDev] = useState<Developer | null>(null)
+  const [infoNome, setInfoNome] = useState('')
+  const [infoCognome, setInfoCognome] = useState('')
+  const [infoTelefono, setInfoTelefono] = useState('')
+  const [infoTitolo, setInfoTitolo] = useState('')
+  const [infoAzienda, setInfoAzienda] = useState('')
+  const [infoPartitaIva, setInfoPartitaIva] = useState('')
+  const [infoSaving, setInfoSaving] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
 
@@ -77,13 +159,18 @@ export const GestioneSviluppatoriPage = () => {
     const profileList = profiles ?? []
     const userIds = profileList.map(p => p.user_id)
 
-    // Get project memberships separately (no FK from developer_profiles to project_members)
-    const { data: memberships } = userIds.length > 0
-      ? await supabase
-          .from('project_members')
-          .select('user_id, progetti(id, nome)')
-          .in('user_id', userIds)
-      : { data: [] }
+    // Get project memberships + user profiles + access log summary in parallel
+    const [{ data: memberships }, { data: userProfiles }, { data: accessSummary }] = await Promise.all([
+      userIds.length > 0
+        ? supabase.from('project_members').select('user_id, progetti(id, nome)').in('user_id', userIds)
+        : Promise.resolve({ data: [] }),
+      userIds.length > 0
+        ? supabase.from('user_profiles').select('user_id, nome, cognome, telefono, ruolo').in('user_id', userIds)
+        : Promise.resolve({ data: [] }),
+      userIds.length > 0
+        ? supabase.from('access_log').select('user_id, logged_in_at').in('user_id', userIds).order('logged_in_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+    ])
 
     const membershipMap: Record<string, { id: string; nome: string }[]> = {}
     for (const m of memberships ?? []) {
@@ -93,13 +180,31 @@ export const GestioneSviluppatoriPage = () => {
       membershipMap[m.user_id].push({ id: proj.id, nome: proj.nome })
     }
 
+    const profileMap: Record<string, { nome: string | null; cognome: string | null; telefono: string | null; ruolo: string | null }> = {}
+    for (const up of userProfiles ?? []) {
+      profileMap[up.user_id] = { nome: up.nome ?? null, cognome: up.cognome ?? null, telefono: up.telefono ?? null, ruolo: up.ruolo ?? null }
+    }
+
+    const lastAccessMap: Record<string, string> = {}
+    const accessCountMap: Record<string, number> = {}
+    for (const a of accessSummary ?? []) {
+      if (!lastAccessMap[a.user_id]) lastAccessMap[a.user_id] = a.logged_in_at
+      accessCountMap[a.user_id] = (accessCountMap[a.user_id] ?? 0) + 1
+    }
+
     const devs: Developer[] = profileList.map(p => ({
       user_id: p.user_id,
       email: p.email ?? '—',
       must_change_password: p.must_change_password,
       lingua: p.lingua ?? 'it',
       created_at: p.created_at,
+      last_access: lastAccessMap[p.user_id] ?? null,
+      total_accesses: accessCountMap[p.user_id] ?? 0,
       projects: membershipMap[p.user_id] ?? [],
+      nome: profileMap[p.user_id]?.nome ?? null,
+      cognome: profileMap[p.user_id]?.cognome ?? null,
+      telefono: profileMap[p.user_id]?.telefono ?? null,
+      titolo: profileMap[p.user_id]?.ruolo ?? null,
     }))
 
     setDevelopers(devs)
@@ -228,6 +333,52 @@ export const GestioneSviluppatoriPage = () => {
     setEditModal(true)
   }
 
+  const openInfo = (dev: Developer) => {
+    setInfoDev(dev)
+    setInfoNome(dev.nome ?? '')
+    setInfoCognome(dev.cognome ?? '')
+    setInfoTelefono(dev.telefono ?? '')
+    setInfoTitolo(dev.titolo ?? '')
+    setInfoAzienda('')
+    setInfoPartitaIva('')
+    setInfoModal(true)
+  }
+
+  const saveInfo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!infoDev) return
+    setInfoSaving(true)
+    await supabase.from('user_profiles').upsert({
+      user_id: infoDev.user_id,
+      nome: infoNome.trim() || null,
+      cognome: infoCognome.trim() || null,
+      telefono: infoTelefono.trim() || null,
+      ruolo: infoTitolo.trim() || null,
+    }, { onConflict: 'user_id' })
+    setInfoSaving(false)
+    setInfoModal(false)
+    setInfoDev(null)
+    load()
+  }
+
+  const openLog = async (dev: Developer) => {
+    setLogDev(dev)
+    setLogTab('accessi')
+    setLogModal(true)
+    setLogLoading(true)
+
+    const [{ data: accessi }, { data: attivita }, { data: tasks }] = await Promise.all([
+      supabase.from('access_log').select('id, logged_in_at, ip_address, user_agent').eq('user_id', dev.user_id).order('logged_in_at', { ascending: false }).limit(200),
+      supabase.from('progetto_attivita').select('id, azione, dettaglio, created_at, progetti(nome)').eq('user_id', dev.user_id).order('created_at', { ascending: false }).limit(200),
+      supabase.from('task').select('id, titolo, stato, priorita, scadenza, updated_at, progetti(nome)').ilike('assegnatario', `%${dev.email}%`).order('updated_at', { ascending: false }).limit(200),
+    ])
+
+    setLogAccessi(accessi ?? [])
+    setLogAttivita((attivita ?? []).map((a: any) => ({ ...a, progetto_nome: a.progetti?.nome ?? null })))
+    setLogTask((tasks ?? []).map((t: any) => ({ ...t, progetto_nome: t.progetti?.nome ?? null })))
+    setLogLoading(false)
+  }
+
   const openRevoke = (dev: Developer) => {
     setRevokeId(dev.user_id)
     setRevokeEmail(dev.email)
@@ -295,13 +446,25 @@ export const GestioneSviluppatoriPage = () => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 16, fontWeight: 700, flexShrink: 0,
               }}>
-                {dev.email[0].toUpperCase()}
+                {(dev.nome ?? dev.email)[0].toUpperCase()}
               </div>
 
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 2 }}>
+                  {(dev.nome || dev.cognome) && (
+                    <span style={{ fontSize: 15, fontWeight: 700, color: '#1A2332' }}>
+                      {[dev.nome, dev.cognome].filter(Boolean).join(' ')}
+                    </span>
+                  )}
+                  {dev.titolo && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#6C7F94', backgroundColor: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 4, padding: '2px 8px' }}>
+                      {dev.titolo}
+                    </span>
+                  )}
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1A2332' }}>{dev.email}</span>
+                  <span style={{ fontSize: 13, color: '#6C7F94' }}>{dev.email}</span>
                   <span style={{
                     fontSize: 11, fontWeight: 600,
                     color: dev.lingua === 'en' ? '#7C3AED' : '#6C7F94',
@@ -321,8 +484,19 @@ export const GestioneSviluppatoriPage = () => {
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 10 }}>
-                  Creato il {fmtDate(dev.created_at)}
+                <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, color: '#9CA3AF' }}>Creato il {fmtDate(dev.created_at)}</span>
+                  {dev.last_access && (
+                    <span style={{ fontSize: 12, color: dev.total_accesses > 0 ? '#16A34A' : '#9CA3AF' }}>
+                      · Ultimo accesso {fmtDateTime(dev.last_access)}
+                    </span>
+                  )}
+                  {!dev.last_access && (
+                    <span style={{ fontSize: 12, color: '#D97706' }}>· Mai effettuato l'accesso</span>
+                  )}
+                  {dev.total_accesses > 0 && (
+                    <span style={{ fontSize: 12, color: '#6C7F94' }}>· {dev.total_accesses} accessi totali</span>
+                  )}
                 </div>
 
                 {/* Projects */}
@@ -343,6 +517,34 @@ export const GestioneSviluppatoriPage = () => {
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button
+                  onClick={() => openLog(dev)}
+                  title="Visualizza log"
+                  style={{
+                    background: 'none', border: '1px solid #E5E7EB', cursor: 'pointer',
+                    color: '#6C7F94', padding: '7px 10px', display: 'flex',
+                    alignItems: 'center', borderRadius: 6, fontSize: 12, fontWeight: 600, gap: 5,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND; e.currentTarget.style.color = BRAND }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6C7F94' }}
+                >
+                  <Activity style={{ width: 13, height: 13 }} />
+                  Log
+                </button>
+                <button
+                  onClick={() => openInfo(dev)}
+                  title="Modifica profilo"
+                  style={{
+                    background: 'none', border: '1px solid #E5E7EB', cursor: 'pointer',
+                    color: '#6C7F94', padding: '7px 10px', display: 'flex',
+                    alignItems: 'center', borderRadius: 6, fontSize: 12, fontWeight: 600, gap: 5,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND; e.currentTarget.style.color = BRAND }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6C7F94' }}
+                >
+                  <User style={{ width: 13, height: 13 }} />
+                  Profilo
+                </button>
                 <button
                   onClick={() => openEdit(dev)}
                   title="Modifica progetti"
@@ -545,6 +747,182 @@ export const GestioneSviluppatoriPage = () => {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <Button type="button" variant="ghost" onClick={() => { setEditModal(false); setEditDev(null) }}>Annulla</Button>
               <Button type="submit" disabled={editSaving}>{editSaving ? 'Salvataggio...' : 'Salva'}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Log Modal */}
+      <Modal open={logModal} onClose={() => { setLogModal(false); setLogDev(null) }} title={logDev ? `Log — ${[logDev.nome, logDev.cognome].filter(Boolean).join(' ') || logDev.email}` : 'Log'} width="780px">
+        {logDev && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+            {/* Summary bar */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, backgroundColor: '#E5E7EB', marginBottom: 20 }}>
+              {[
+                { label: 'Accessi totali', value: String(logDev.total_accesses) },
+                { label: 'Ultimo accesso', value: logDev.last_access ? fmtDateTime(logDev.last_access) : '—' },
+                { label: 'Task assegnati', value: String(logTask.length) },
+              ].map(s => (
+                <div key={s.label} style={{ backgroundColor: '#F9FAFB', padding: '12px 16px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94', marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1A2332' }}>{logLoading ? '…' : s.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #E5E7EB', marginBottom: 16 }}>
+              {([['accessi', 'Accessi'], ['attivita', 'Attività'], ['task', 'Task']] as [LogTab, string][]).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setLogTab(tab)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '8px 20px', fontSize: 13, fontWeight: 600,
+                    color: logTab === tab ? BRAND : '#6C7F94',
+                    borderBottom: logTab === tab ? `2px solid ${BRAND}` : '2px solid transparent',
+                    marginBottom: -2, transition: 'all 0.15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {logLoading ? (
+              <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>Caricamento...</div>
+            ) : (
+              <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+
+                {/* Tab: Accessi */}
+                {logTab === 'accessi' && (
+                  logAccessi.length === 0 ? (
+                    <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>Nessun accesso registrato</div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                          {['Data e ora', 'Indirizzo IP', 'Dispositivo', 'Browser'].map(h => (
+                            <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#6C7F94' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logAccessi.map((a, i) => {
+                          const { label, Icon } = parseDevice(a.user_agent)
+                          return (
+                            <tr key={a.id} style={{ borderBottom: i < logAccessi.length - 1 ? '1px solid #F3F4F6' : 'none', backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                              <td style={{ padding: '9px 14px', color: '#1A2332', fontVariantNumeric: 'tabular-nums' }}>{fmtDateTime(a.logged_in_at)}</td>
+                              <td style={{ padding: '9px 14px', color: '#6C7F94', fontFamily: 'monospace', fontSize: 12 }}>{a.ip_address ?? '—'}</td>
+                              <td style={{ padding: '9px 14px' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#374151' }}>
+                                  <Icon style={{ width: 13, height: 13, color: '#6C7F94' }} />{label}
+                                </span>
+                              </td>
+                              <td style={{ padding: '9px 14px', color: '#374151' }}>{parseBrowser(a.user_agent)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  )
+                )}
+
+                {/* Tab: Attività */}
+                {logTab === 'attivita' && (
+                  logAttivita.length === 0 ? (
+                    <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>Nessuna attività registrata</div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                          {['Data e ora', 'Azione', 'Dettaglio', 'Progetto'].map(h => (
+                            <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#6C7F94' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logAttivita.map((a, i) => (
+                          <tr key={a.id} style={{ borderBottom: i < logAttivita.length - 1 ? '1px solid #F3F4F6' : 'none', backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                            <td style={{ padding: '9px 14px', color: '#6C7F94', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtDateTime(a.created_at)}</td>
+                            <td style={{ padding: '9px 14px', color: '#1A2332', fontWeight: 600 }}>{a.azione}</td>
+                            <td style={{ padding: '9px 14px', color: '#6C7F94', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.dettaglio ?? '—'}</td>
+                            <td style={{ padding: '9px 14px', color: BRAND, fontWeight: 500 }}>{a.progetto_nome ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                )}
+
+                {/* Tab: Task */}
+                {logTab === 'task' && (
+                  logTask.length === 0 ? (
+                    <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>Nessun task assegnato</div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                          {['Titolo', 'Progetto', 'Stato', 'Priorità', 'Scadenza', 'Aggiornato'].map(h => (
+                            <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#6C7F94' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logTask.map((t, i) => (
+                          <tr key={t.id} style={{ borderBottom: i < logTask.length - 1 ? '1px solid #F3F4F6' : 'none', backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                            <td style={{ padding: '9px 14px', color: '#1A2332', fontWeight: 600, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titolo}</td>
+                            <td style={{ padding: '9px 14px', color: '#6C7F94' }}>{t.progetto_nome ?? '—'}</td>
+                            <td style={{ padding: '9px 14px' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: statoColor[t.stato] ?? '#9CA3AF' }}>{t.stato.replace('_', ' ')}</span>
+                            </td>
+                            <td style={{ padding: '9px 14px' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: prioritaColor[t.priorita] ?? '#9CA3AF' }}>{t.priorita}</span>
+                            </td>
+                            <td style={{ padding: '9px 14px', color: '#6C7F94', whiteSpace: 'nowrap' }}>{t.scadenza ? new Date(t.scadenza).toLocaleDateString('it-IT') : '—'}</td>
+                            <td style={{ padding: '9px 14px', color: '#9CA3AF', whiteSpace: 'nowrap', fontSize: 12 }}>{fmtDateTime(t.updated_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                )}
+
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Info / Profile Modal */}
+      <Modal open={infoModal} onClose={() => { setInfoModal(false); setInfoDev(null) }} title="Profilo developer" width="480px">
+        {infoDev && (
+          <form onSubmit={saveInfo} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: '#6C7F94', margin: 0 }}>
+              Informazioni personali di <strong>{infoDev.email}</strong>
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <FormField label="Nome">
+                <Input value={infoNome} onChange={e => setInfoNome(e.target.value)} placeholder="Es. Marco" />
+              </FormField>
+              <FormField label="Cognome">
+                <Input value={infoCognome} onChange={e => setInfoCognome(e.target.value)} placeholder="Es. Rossi" />
+              </FormField>
+            </div>
+
+            <FormField label="Ruolo / Titolo professionale">
+              <Input value={infoTitolo} onChange={e => setInfoTitolo(e.target.value)} placeholder="Es. Frontend Developer, Full-Stack Engineer..." />
+            </FormField>
+
+            <FormField label="Telefono">
+              <Input type="tel" value={infoTelefono} onChange={e => setInfoTelefono(e.target.value)} placeholder="+39 333 1234567" />
+            </FormField>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <Button type="button" variant="ghost" onClick={() => { setInfoModal(false); setInfoDev(null) }}>Annulla</Button>
+              <Button type="submit" disabled={infoSaving}>{infoSaving ? 'Salvataggio...' : 'Salva'}</Button>
             </div>
           </form>
         )}

@@ -165,9 +165,27 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
 
       const inizioMese = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}-01`
 
+      const userId = user?.id ?? null
+
       const mieiTaskQuery = isAdmin
         ? supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').order('scadenza', { ascending: true }).limit(20)
         : supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').ilike('assegnatario', `%${userEmail}%`).order('scadenza', { ascending: true }).limit(20)
+
+      const progettiRecentiQuery = isDeveloper && userId
+        ? supabase.from('progetti').select('id, nome, stato, pagamento_mensile, clienti(nome), project_members!inner(user_id)').eq('project_members.user_id', userId).order('created_at', { ascending: false }).limit(6)
+        : supabase.from('progetti').select('id, nome, stato, pagamento_mensile, clienti(nome)').order('created_at', { ascending: false }).limit(6)
+
+      const taskUrgentiQuery = isDeveloper
+        ? supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').in('stato', ['todo', 'in_progress']).in('priorita', ['alta', 'urgente']).ilike('assegnatario', `%${userEmail}%`).order('scadenza', { ascending: true }).limit(6)
+        : supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').in('stato', ['todo', 'in_progress']).in('priorita', ['alta', 'urgente']).order('scadenza', { ascending: true }).limit(6)
+
+      const taskProssimiQuery = isDeveloper
+        ? supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').gte('scadenza', oggiISO).lte('scadenza', fra7ggISO).neq('stato', 'done').ilike('assegnatario', `%${userEmail}%`).order('scadenza', { ascending: true }).limit(8)
+        : supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').gte('scadenza', oggiISO).lte('scadenza', fra7ggISO).neq('stato', 'done').order('scadenza', { ascending: true }).limit(8)
+
+      const eventiQuery = isDeveloper && userId && userEmail
+        ? supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).or(`user_id.eq.${userId},partecipanti.ilike.*${userEmail}*`).order('data_inizio', { ascending: true }).limit(5)
+        : supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).order('data_inizio', { ascending: true }).limit(5)
 
       const [
         { count: totalClienti },
@@ -186,10 +204,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti'),
         supabase.from('task').select('stato'),
         supabase.from('task').select('*', { count: 'exact', head: true }).lt('scadenza', oggiISO).neq('stato', 'done'),
-        supabase.from('progetti').select('id, nome, stato, pagamento_mensile, clienti(nome)').order('created_at', { ascending: false }).limit(6),
-        supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').in('stato', ['todo', 'in_progress']).in('priorita', ['alta', 'urgente']).order('scadenza', { ascending: true }).limit(6),
-        supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').gte('scadenza', oggiISO).lte('scadenza', fra7ggISO).neq('stato', 'done').order('scadenza', { ascending: true }).limit(8),
-        supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).order('data_inizio', { ascending: true }).limit(5),
+        progettiRecentiQuery,
+        taskUrgentiQuery,
+        taskProssimiQuery,
+        eventiQuery,
         supabase.from('progetto_attivita').select('id, azione, dettaglio, created_at, progetti(nome)').order('created_at', { ascending: false }).limit(10),
         supabase.from('spese').select('importo').gte('data', inizioMese),
         mieiTaskQuery,
@@ -423,10 +441,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       </div>
 
       {/* ── Charts ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isDeveloper ? '1fr' : '1fr 1fr', gap: 1, backgroundColor: '#E5E7EB' }}>
 
-        {/* Pipeline donut */}
-        <div style={{ backgroundColor: '#fff', padding: '20px' }}>
+        {/* Pipeline donut – hidden for developer */}
+        {!isDeveloper && <div style={{ backgroundColor: '#fff', padding: '20px' }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B7280', marginBottom: 16 }}>{t('dash.pipeline')}</div>
           {pipelineData.length === 0
             ? <Empty text={t('dash.no_projects')} />
@@ -454,7 +472,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
               </div>
             )
           }
-        </div>
+        </div>}
 
         {/* Task per stato bar chart */}
         <div style={{ backgroundColor: '#fff', padding: '20px' }}>

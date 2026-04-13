@@ -5,7 +5,7 @@ import { safeErrorMessage } from '../lib/errors'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Modal } from '../components/ui/Modal'
-import { useT } from '../hooks/useCurrentRole'
+import { useCurrentRole, useT } from '../hooks/useCurrentRole'
 
 interface Spunto {
   id: string
@@ -23,6 +23,8 @@ function fmtDateTime(d: string) {
 const BRAND = '#005DEF'
 
 export const SpuntiPage = () => {
+  const { role } = useCurrentRole()
+  const isDeveloper = role === 'developer'
   const t = useT()
   const [rows, setRows] = useState<Spunto[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,14 +34,16 @@ export const SpuntiPage = () => {
   const [showCompleted, setShowCompleted] = useState(false)
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('spunti')
-      .select('*')
-      .order('created_at', { ascending: false })
+    let query = supabase.from('spunti').select('*').order('created_at', { ascending: false })
+    if (isDeveloper) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.id) query = query.eq('user_id', user.id)
+    }
+    const { data, error } = await query
     if (error) { console.error(safeErrorMessage(error)); return }
     setRows(data ?? [])
     setLoading(false)
-  }, [])
+  }, [isDeveloper])
 
   useEffect(() => { load() }, [load])
 
