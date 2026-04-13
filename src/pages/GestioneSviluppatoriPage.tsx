@@ -110,16 +110,21 @@ export const GestioneSviluppatoriPage = () => {
 
   const callEdgeFunction = async (body: object) => {
     // #region agent log
-    console.log('[DEBUG-5e512b] callEdgeFunction: using supabase.functions.invoke');
+    const _dbg = (msg: string, data: Record<string, unknown>) => fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'GestioneSviluppatoriPage.tsx',message:msg,data,timestamp:Date.now()})}).catch(()=>{});
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    const exp = session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
+    const now = new Date().toISOString()
+    await _dbg('pre-invoke session', { hasSession: !!session, hasToken: !!token, tokenLen: token?.length ?? 0, expiresAt: exp, now, hypothesisId: 'H1' })
     // #endregion
-    const { data, error } = await supabase.functions.invoke('manage-developer', { body })
+    const { data: respData, error } = await supabase.functions.invoke('manage-developer', { body })
     // #region agent log
-    console.log('[DEBUG-5e512b] manage-developer result', { data, error: error?.message ?? null });
+    await _dbg('post-invoke result', { respData: JSON.stringify(respData)?.slice(0, 500), errorMsg: error?.message ?? null, errorContext: error ? JSON.stringify(error).slice(0, 500) : null, hypothesisId: 'H1-H5' })
     // #endregion
     if (error) {
       return { ok: false, error: error.message }
     }
-    return data
+    return respData
   }
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -138,7 +143,7 @@ export const GestioneSviluppatoriPage = () => {
     setInviting(false)
 
     // #region agent log
-    console.log('[DEBUG-5e512b] handleInvite result', { ok: result.ok, error: result.error, hasUserId: !!result.user_id, hasEmail: !!result.email, hasTempPw: !!result.temp_password });
+    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'GestioneSviluppatoriPage.tsx:handleInvite',message:'invite result',data:{ok:result.ok,error:result.error,hasUserId:!!result.user_id,hasEmail:!!result.email,hasTempPw:!!result.temp_password,hypothesisId:'H1-H5'},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 
     if (!result.ok) {
@@ -153,7 +158,7 @@ export const GestioneSviluppatoriPage = () => {
         .update({ lingua: inviteLingua })
         .eq('user_id', result.user_id)
       // #region agent log
-      console.log('[DEBUG-5e512b] lingua update', { status: linguaRes.status, error: linguaRes.error?.message });
+      fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'GestioneSviluppatoriPage.tsx:linguaUpdate',message:'lingua update',data:{status:linguaRes.status,error:linguaRes.error?.message,hypothesisId:'H4'},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
     } catch { /* non-blocking */ }
 

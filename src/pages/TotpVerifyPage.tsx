@@ -43,7 +43,9 @@ export const TotpVerifyPage = () => {
     setError(null)
     try {
       const { data: factors } = await supabase.auth.mfa.listFactors()
-      const totp = factors?.totp?.[0]
+      // Preferisce Google Authenticator (esclude il fattore biometrico usato solo su mobile)
+      const totp = factors?.totp?.find(f => f.status === 'verified' && f.friendly_name !== 'Accesso biometrico')
+        ?? factors?.totp?.find(f => f.status === 'verified')
       if (!totp) throw new Error('Nessun fattore TOTP trovato.')
 
       const { data: challenge, error: challengeErr } = await supabase.auth.mfa.challenge({ factorId: totp.id })
