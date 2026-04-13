@@ -32,6 +32,7 @@ import { Modal } from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useCurrentRole } from '../hooks/useCurrentRole'
 
 const BRAND = '#005DEF'
 
@@ -273,6 +274,8 @@ interface Props {
 
 export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
   const isMobile = useIsMobile()
+  const { role } = useCurrentRole()
+  const isDeveloper = role === 'developer'
   const [tab, setTab] = useState<Tab>('overview')
   const [progetto, setProgetto] = useState<Progetto | null>(null)
   const [clienti, setClienti] = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
@@ -394,10 +397,12 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
           <span style={{ fontSize: isMobile ? 15 : 16, fontWeight: 700, color: '#1A2332' }}>{progetto.nome}</span>
           <Badge label={sb.label} color={sb.color} />
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <Button variant="ghost" size="sm" onClick={openEditProject}><Pencil style={{ width: 12, height: 12 }} /> {isMobile ? '' : 'Modifica'}</Button>
-          <Button variant="danger" size="sm" onClick={() => setDeleteModal(true)}><Trash2 style={{ width: 12, height: 12 }} /> {isMobile ? '' : 'Elimina'}</Button>
-        </div>
+        {!isDeveloper && (
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <Button variant="ghost" size="sm" onClick={openEditProject}><Pencil style={{ width: 12, height: 12 }} /> {isMobile ? '' : 'Modifica'}</Button>
+            <Button variant="danger" size="sm" onClick={() => setDeleteModal(true)}><Trash2 style={{ width: 12, height: 12 }} /> {isMobile ? '' : 'Elimina'}</Button>
+          </div>
+        )}
       </div>
 
       {/* Tabs — scrollable on mobile */}
@@ -410,7 +415,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
         WebkitOverflowScrolling: 'touch',
         scrollbarWidth: 'none',
       }}>
-        {TABS.map(t => (
+        {(isDeveloper ? TABS.filter(t => !['spese', 'legal', 'contratto'].includes(t.id)) : TABS).map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -437,7 +442,7 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
       </div>
 
       {/* Tab content */}
-      {tab === 'overview' && <OverviewTab progetto={progetto} onSave={loadProgetto} />}
+      {tab === 'overview' && <OverviewTab progetto={progetto} onSave={loadProgetto} isDeveloper={isDeveloper} />}
       {tab === 'task' && <TaskTab progettoId={progettoId} progettoNome={progetto.nome} logActivity={logActivity} />}
       {tab === 'spese' && <SpeseProgettoTab progetto={progetto} onSave={loadProgetto} logActivity={logActivity} />}
       {tab === 'team' && <TeamTab progetto={progetto} onSave={loadProgetto} logActivity={logActivity} />}
@@ -496,22 +501,26 @@ export const ProgettoDetailPage = ({ progettoId, onBack }: Props) => {
               </Select>
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-            <FormField label="Pagamento mensile (€)" error={editErrors.pagamento_mensile}>
-              <Input type="number" step="0.01" value={(editForm.pagamento_mensile as number) ?? ''} onChange={ef('pagamento_mensile')} />
-            </FormField>
-            <FormField label="Marginalità stimata (%)" error={editErrors.marginalita_stimata}>
-              <Input type="number" step="0.1" value={(editForm.marginalita_stimata as number) ?? ''} onChange={ef('marginalita_stimata')} />
-            </FormField>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-            <FormField label="Commerciale" error={editErrors.commerciale} hint="Chi ha chiuso il contratto">
-              <Input value={(editForm.commerciale as string) ?? ''} onChange={ef('commerciale')} placeholder="Es. Mario Rossi" />
-            </FormField>
-            <FormField label="% Commissione" error={editErrors.percentuale_commissione} hint="Percentuale sul pagamento mensile">
-              <Input type="number" step="0.1" min="0" max="100" value={(editForm.percentuale_commissione as number) ?? ''} onChange={ef('percentuale_commissione')} placeholder="Es. 10" />
-            </FormField>
-          </div>
+          {!isDeveloper && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                <FormField label="Pagamento mensile (€)" error={editErrors.pagamento_mensile}>
+                  <Input type="number" step="0.01" value={(editForm.pagamento_mensile as number) ?? ''} onChange={ef('pagamento_mensile')} />
+                </FormField>
+                <FormField label="Marginalità stimata (%)" error={editErrors.marginalita_stimata}>
+                  <Input type="number" step="0.1" value={(editForm.marginalita_stimata as number) ?? ''} onChange={ef('marginalita_stimata')} />
+                </FormField>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                <FormField label="Commerciale" error={editErrors.commerciale} hint="Chi ha chiuso il contratto">
+                  <Input value={(editForm.commerciale as string) ?? ''} onChange={ef('commerciale')} placeholder="Es. Mario Rossi" />
+                </FormField>
+                <FormField label="% Commissione" error={editErrors.percentuale_commissione} hint="Percentuale sul pagamento mensile">
+                  <Input type="number" step="0.1" min="0" max="100" value={(editForm.percentuale_commissione as number) ?? ''} onChange={ef('percentuale_commissione')} placeholder="Es. 10" />
+                </FormField>
+              </div>
+            </>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FormField label="Link Demo" error={editErrors.link_demo} hint="URL ambiente demo">
               <Input value={(editForm.link_demo as string) ?? ''} onChange={ef('link_demo')} placeholder="https://demo.progetto.com" />
@@ -548,7 +557,7 @@ const overviewRicToMensile = (r: SpesaRicorrente) => {
   return r.importo / (div[r.frequenza ?? 'mensile'] ?? 1)
 }
 
-const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => void }) => {
+const OverviewTab = ({ progetto, onSave, isDeveloper = false }: { progetto: Progetto; onSave: () => void; isDeveloper?: boolean }) => {
   const isMobile = useIsMobile()
   const [spese, setSpese] = useState<Spesa[]>([])
   const [contratto, setContratto] = useState<ProgettoContratto | null>(null)
@@ -659,30 +668,36 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
 
       {/* KPI */}
       <Card style={{ padding: isMobile ? '14px 16px' : '16px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 16 : 24 }}>
-          <div>
-            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese totali</div>
-            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalSpese)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Costi ric. / mese</div>
-            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(costoRicMensile)}</div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isDeveloper ? '1fr' : (isMobile ? '1fr 1fr' : 'repeat(4, 1fr)'), gap: isMobile ? 16 : 24 }}>
+          {!isDeveloper && (
+            <>
+              <div>
+                <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Spese totali</div>
+                <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(totalSpese)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Costi ric. / mese</div>
+                <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{fmtEur(costoRicMensile)}</div>
+              </div>
+            </>
+          )}
           <div>
             <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Task</div>
             <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{taskStats.done}/{taskStats.total}</div>
           </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margine mese</div>
-            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: (ricavoMensile - totalSpeseMese - costoRicMensile) >= 0 ? '#1A2332' : '#DC2626', marginTop: 2 }}>
-              {fmtEur(ricavoMensile - totalSpeseMese - costoRicMensile)}
+          {!isDeveloper && (
+            <div>
+              <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margine mese</div>
+              <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: (ricavoMensile - totalSpeseMese - costoRicMensile) >= 0 ? '#1A2332' : '#DC2626', marginTop: 2 }}>
+                {fmtEur(ricavoMensile - totalSpeseMese - costoRicMensile)}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </Card>
 
       {/* Info + Economic */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isDeveloper ? '1fr' : (isMobile ? '1fr' : '1fr 1fr'), gap: 16 }}>
         <Card>
           <div style={{ padding: isMobile ? '12px 16px' : '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Informazioni
@@ -696,34 +711,36 @@ const OverviewTab = ({ progetto, onSave }: { progetto: Progetto; onSave: () => v
             <InfoRow label="Data fine" value={fmtDate(progetto.data_fine)} />
           </div>
         </Card>
-        <Card>
-          <div style={{ padding: isMobile ? '12px 16px' : '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Riepilogo economico
-          </div>
-          <div style={{ padding: isMobile ? '0 16px' : '0 24px' }}>
-            <InfoRow label="Ricavo mensile" value={fmtEur(ricavoMensile || null)} />
-            <InfoRow label="Budget" value={fmtEur(progetto.budget)} />
-            <InfoRow label="Spese totali" value={fmtEur(totalSpese)} />
-            <InfoRow label="Costi ric. / mese" value={fmtEur(costoRicMensile)} />
-            <InfoRow label="Margine mese" value={
-              <span style={{ color: (ricavoMensile - totalSpeseMese - costoRicMensile) >= 0 ? '#1A2332' : '#DC2626', fontWeight: 600 }}>
-                {fmtEur(ricavoMensile - totalSpeseMese - costoRicMensile)}
-              </span>
-            } />
-            <InfoRow label="Marginalità stimata" value={progetto.marginalita_stimata != null ? `${progetto.marginalita_stimata}%` : '—'} />
-            <InfoRow label="Commerciale" value={progetto.commerciale ?? '—'} />
-            {progetto.commerciale && progetto.percentuale_commissione != null && (
-              <InfoRow
-                label="Commissione"
-                value={`${progetto.percentuale_commissione}% = ${fmtEur((ricavoMensile * progetto.percentuale_commissione) / 100)}/mese`}
-              />
-            )}
-          </div>
-        </Card>
+        {!isDeveloper && (
+          <Card>
+            <div style={{ padding: isMobile ? '12px 16px' : '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Riepilogo economico
+            </div>
+            <div style={{ padding: isMobile ? '0 16px' : '0 24px' }}>
+              <InfoRow label="Ricavo mensile" value={fmtEur(ricavoMensile || null)} />
+              <InfoRow label="Budget" value={fmtEur(progetto.budget)} />
+              <InfoRow label="Spese totali" value={fmtEur(totalSpese)} />
+              <InfoRow label="Costi ric. / mese" value={fmtEur(costoRicMensile)} />
+              <InfoRow label="Margine mese" value={
+                <span style={{ color: (ricavoMensile - totalSpeseMese - costoRicMensile) >= 0 ? '#1A2332' : '#DC2626', fontWeight: 600 }}>
+                  {fmtEur(ricavoMensile - totalSpeseMese - costoRicMensile)}
+                </span>
+              } />
+              <InfoRow label="Marginalità stimata" value={progetto.marginalita_stimata != null ? `${progetto.marginalita_stimata}%` : '—'} />
+              <InfoRow label="Commerciale" value={progetto.commerciale ?? '—'} />
+              {progetto.commerciale && progetto.percentuale_commissione != null && (
+                <InfoRow
+                  label="Commissione"
+                  value={`${progetto.percentuale_commissione}% = ${fmtEur((ricavoMensile * progetto.percentuale_commissione) / 100)}/mese`}
+                />
+              )}
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Contratto summary */}
-      {contratto && (
+      {!isDeveloper && contratto && (
         <Card>
           <div style={{ padding: '14px 24px', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Contratto

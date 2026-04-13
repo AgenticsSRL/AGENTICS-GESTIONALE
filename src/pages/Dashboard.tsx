@@ -187,6 +187,18 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         ? supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).or(`user_id.eq.${userId},partecipanti.ilike.*${userEmail}*`).order('data_inizio', { ascending: true }).limit(5)
         : supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).order('data_inizio', { ascending: true }).limit(5)
 
+      const tuttiProgettiQuery = isDeveloper && userId
+        ? supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti, project_members!inner(user_id)').eq('project_members.user_id', userId)
+        : supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti')
+
+      const tuttiTaskQuery = isDeveloper && userEmail
+        ? supabase.from('task').select('stato').ilike('assegnatario', `%${userEmail}%`)
+        : supabase.from('task').select('stato')
+
+      const taskScadutiQuery = isDeveloper && userEmail
+        ? supabase.from('task').select('*', { count: 'exact', head: true }).lt('scadenza', oggiISO).neq('stato', 'done').ilike('assegnatario', `%${userEmail}%`)
+        : supabase.from('task').select('*', { count: 'exact', head: true }).lt('scadenza', oggiISO).neq('stato', 'done')
+
       const [
         { count: totalClienti },
         { data: tuttiProgetti },
@@ -201,9 +213,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         { data: mieiTaskData },
       ] = await Promise.all([
         supabase.from('clienti').select('*', { count: 'exact', head: true }),
-        supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti'),
-        supabase.from('task').select('stato'),
-        supabase.from('task').select('*', { count: 'exact', head: true }).lt('scadenza', oggiISO).neq('stato', 'done'),
+        tuttiProgettiQuery,
+        tuttiTaskQuery,
+        taskScadutiQuery,
         progettiRecentiQuery,
         taskUrgentiQuery,
         taskProssimiQuery,
