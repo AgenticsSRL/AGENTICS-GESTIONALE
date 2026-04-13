@@ -12,7 +12,7 @@ const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 import {
   ArrowLeft, Plus, Pencil, Trash2, Upload, Download,
   FileText, Clock, Shield, StickyNote, Briefcase, Lock, EyeOff, Copy, KeyRound,
-  CheckSquare, ChevronDown, ChevronRight, Send, X, Eye, Users,
+  CheckSquare, ChevronDown, ChevronRight, Send, X, Eye,
 } from 'lucide-react'
 import { supabase, verifyPassword } from '../lib/supabase'
 import { taskSchema, progettoSchema, progettoNotaSchema, progettoCredenzialeSchema, spesaSchema, validate, type ValidationErrors } from '../lib/validation'
