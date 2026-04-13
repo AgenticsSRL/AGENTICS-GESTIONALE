@@ -266,7 +266,7 @@ export async function sendNotification(payload: NotificationPayload): Promise<vo
     const html = buildEmailHtml(payload.params)
     const { data: { session } } = await supabase.auth.getSession()
     // #region agent log
-    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'notifications.ts:sendNotification:before',message:'about to call send-notification',data:{hasSession:!!session,hasToken:!!session?.access_token,url:`${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/send-notification`,hasApikey:!!(import.meta as any).env.VITE_SUPABASE_ANON_KEY},timestamp:Date.now(),hypothesisId:'H2,H3'})}).catch(()=>{});
+    console.log('[DEBUG-5e512b] sendNotification before', { hasSession: !!session, hasToken: !!session?.access_token });
     // #endregion
     const res = await fetch(
       `${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
@@ -285,7 +285,7 @@ export async function sendNotification(payload: NotificationPayload): Promise<vo
       },
     )
     // #region agent log
-    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'notifications.ts:sendNotification:response',message:'send-notification response',data:{status:res.status,ok:res.ok},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    console.log('[DEBUG-5e512b] sendNotification response', { status: res.status, ok: res.ok });
     // #endregion
     if (!res.ok) console.error('[notifications] send error:', res.status, await res.text())
   } catch (err) {

@@ -111,7 +111,10 @@ export const GestioneSviluppatoriPage = () => {
   const callEdgeFunction = async (body: object) => {
     const { data: { session } } = await supabase.auth.getSession()
     // #region agent log
-    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'GestioneSviluppatoriPage.tsx:callEdgeFunction',message:'session state before manage-developer',data:{hasSession:!!session,hasToken:!!session?.access_token,tokenPrefix:session?.access_token?.slice(0,20)},timestamp:Date.now(),hypothesisId:'H1,H3'})}).catch(()=>{});
+    const exp = session?.access_token ? JSON.parse(atob(session.access_token.split('.')[1])).exp : null;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const aal = session?.access_token ? JSON.parse(atob(session.access_token.split('.')[1])).aal : null;
+    console.log('[DEBUG-5e512b] callEdgeFunction session', { hasSession: !!session, hasToken: !!session?.access_token, tokenExp: exp, nowSec, expired: exp ? nowSec > exp : 'no-token', secondsLeft: exp ? exp - nowSec : null, aal, url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-developer` });
     // #endregion
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-developer`,
@@ -126,8 +129,14 @@ export const GestioneSviluppatoriPage = () => {
       }
     )
     // #region agent log
-    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'GestioneSviluppatoriPage.tsx:callEdgeFunction:response',message:'manage-developer response',data:{status:res.status,ok:res.ok},timestamp:Date.now(),hypothesisId:'H1,H5'})}).catch(()=>{});
+    console.log('[DEBUG-5e512b] manage-developer response', { status: res.status, ok: res.ok });
     // #endregion
+    if (res.status === 401) {
+      // #region agent log
+      const errText = await res.clone().text();
+      console.log('[DEBUG-5e512b] manage-developer 401 body', errText);
+      // #endregion
+    }
     return res.json()
   }
 
@@ -147,7 +156,7 @@ export const GestioneSviluppatoriPage = () => {
     setInviting(false)
 
     // #region agent log
-    fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'GestioneSviluppatoriPage.tsx:handleInvite:result',message:'edge function result',data:{ok:result.ok,error:result.error,hasUserId:!!result.user_id,hasEmail:!!result.email,hasTempPw:!!result.temp_password},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+    console.log('[DEBUG-5e512b] handleInvite result', { ok: result.ok, error: result.error, hasUserId: !!result.user_id, hasEmail: !!result.email, hasTempPw: !!result.temp_password });
     // #endregion
 
     if (!result.ok) {
@@ -162,7 +171,7 @@ export const GestioneSviluppatoriPage = () => {
         .update({ lingua: inviteLingua })
         .eq('user_id', result.user_id)
       // #region agent log
-      fetch('http://127.0.0.1:7677/ingest/86fc2cc9-7fe9-449c-8120-f182727f1670',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5e512b'},body:JSON.stringify({sessionId:'5e512b',location:'GestioneSviluppatoriPage.tsx:handleInvite:lingua',message:'lingua update result',data:{status:linguaRes.status,error:linguaRes.error?.message},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      console.log('[DEBUG-5e512b] lingua update', { status: linguaRes.status, error: linguaRes.error?.message });
       // #endregion
     } catch { /* non-blocking */ }
 
