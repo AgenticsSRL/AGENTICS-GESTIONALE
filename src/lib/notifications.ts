@@ -264,17 +264,26 @@ export function buildEmailHtml(p: EmailParams): string {
 export async function sendNotification(payload: NotificationPayload): Promise<void> {
   try {
     const html = buildEmailHtml(payload.params)
-    const { data: { session } } = await supabase.auth.getSession()
+
+    // Get fresh token
+    const { data: refreshData } = await supabase.auth.refreshSession()
+    let token = refreshData?.session?.access_token
+    if (!token) {
+      const { data: { session } } = await supabase.auth.getSession()
+      token = session?.access_token
+    }
+
     // #region agent log
-    console.log('[DEBUG-5e512b] sendNotification before', { hasSession: !!session, hasToken: !!session?.access_token });
+    console.log('[DEBUG-5e512b] sendNotification', { hasToken: !!token, to: payload.to });
     // #endregion
+
     const res = await fetch(
       `${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`,
+          Authorization: `Bearer ${token}`,
           apikey: (import.meta as any).env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({

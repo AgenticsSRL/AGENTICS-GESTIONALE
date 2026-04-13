@@ -109,21 +109,29 @@ export const GestioneSviluppatoriPage = () => {
   useEffect(() => { load() }, [load])
 
   const callEdgeFunction = async (body: object) => {
-    // Force token refresh before calling edge function
-    await supabase.auth.refreshSession()
-    const { data: { session } } = await supabase.auth.getSession()
+    // Get a fresh token: refreshSession returns the new session directly
+    const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession()
+    let token = refreshData?.session?.access_token
+
+    // Fallback: if refresh failed, try getSession (might still have a valid cached token)
+    if (!token) {
+      const { data: { session } } = await supabase.auth.getSession()
+      token = session?.access_token
+    }
+
     // #region agent log
-    const exp = session?.access_token ? JSON.parse(atob(session.access_token.split('.')[1])).exp : null;
+    const exp = token ? JSON.parse(atob(token.split('.')[1])).exp : null;
     const nowSec = Math.floor(Date.now() / 1000);
-    console.log('[DEBUG-5e512b] callEdgeFunction session', { hasSession: !!session, hasToken: !!session?.access_token, tokenExp: exp, nowSec, expired: exp ? nowSec > exp : 'no-token', secondsLeft: exp ? exp - nowSec : null });
+    console.log('[DEBUG-5e512b] callEdgeFunction', { hasToken: !!token, refreshErr: refreshErr?.message ?? null, tokenExp: exp, nowSec, secondsLeft: exp ? exp - nowSec : null });
     // #endregion
+
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-developer`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`,
+          Authorization: `Bearer ${token}`,
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify(body),
@@ -131,13 +139,8 @@ export const GestioneSviluppatoriPage = () => {
     )
     // #region agent log
     console.log('[DEBUG-5e512b] manage-developer response', { status: res.status, ok: res.ok });
+    if (!res.ok) { const t = await res.clone().text(); console.log('[DEBUG-5e512b] manage-developer error body', t); }
     // #endregion
-    if (res.status === 401) {
-      // #region agent log
-      const errText = await res.clone().text();
-      console.log('[DEBUG-5e512b] manage-developer 401 body', errText);
-      // #endregion
-    }
     return res.json()
   }
 
@@ -176,46 +179,45 @@ export const GestioneSviluppatoriPage = () => {
       // #endregion
     } catch { /* non-blocking */ }
 
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    const adminEmail = currentUser?.email ?? 'lorenzo@agentics.eu.com'
     const now = new Date().toLocaleDateString(inviteLingua === 'en' ? 'en-GB' : 'it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
     const isEn = inviteLingua === 'en'
+    const devEmail = result.email
 
-    // Fire-and-forget: don't block UI on notification
+    // Send welcome email TO THE DEVELOPER with their credentials
     sendNotification({
-      to: [adminEmail],
+      to: [devEmail],
       subject: isEn
-        ? `New developer created: ${result.email}`
-        : `Nuovo sviluppatore creato: ${result.email}`,
+        ? 'Welcome to Agentics — Your account is ready'
+        : 'Benvenuto in Agentics — Il tuo account è pronto',
       params: {
-        notification_label: isEn ? 'NEW DEVELOPER' : 'NUOVO SVILUPPATORE',
-        email_title: isEn ? 'Developer account created' : 'Account developer creato',
+        notification_label: isEn ? 'WELCOME' : 'BENVENUTO',
+        email_title: isEn ? 'Your account is ready' : 'Il tuo account è pronto',
         email_subtitle: isEn
-          ? `Initial credentials for ${result.email}`
-          : `Credenziali iniziali per ${result.email}`,
-        recipient_name: 'Admin',
+          ? 'Log in and start working on your projects'
+          : 'Accedi e inizia a lavorare sui tuoi progetti',
+        recipient_name: devEmail.split('@')[0],
         intro_text: isEn
-          ? 'A new developer account has been created. Below are the initial credentials. The password must be changed on first login.'
-          : 'È stato creato un nuovo account sviluppatore nel gestionale. Di seguito le credenziali iniziali. La password dovrà essere cambiata al primo accesso.',
-        update_type: isEn ? 'Account Created' : 'Account Creato',
-        subject: result.email,
-        reference_code: `${isEn ? 'Language' : 'Lingua'}: ${isEn ? 'English' : 'Italiano'}`,
+          ? 'An account has been created for you on the Agentics platform. Below are your temporary credentials. You will be asked to change your password on first login and set up two-factor authentication.'
+          : 'È stato creato un account per te sulla piattaforma Agentics. Di seguito le tue credenziali temporanee. Al primo accesso ti verrà chiesto di cambiare la password e configurare l\'autenticazione a due fattori.',
+        update_type: isEn ? 'New Account' : 'Nuovo Account',
+        subject: devEmail,
+        reference_code: isEn ? 'Agentics Platform' : 'Piattaforma Agentics',
         date: now,
         status: isEn ? 'Active' : 'Attivo',
         message_body: isEn
-          ? `<strong>Email:</strong> ${result.email}<br><br><strong>Temporary password:</strong> ${result.temp_password}<br><br>The developer must change the password on first login and set up two-factor authentication.`
-          : `<strong>Email:</strong> ${result.email}<br><br><strong>Password temporanea:</strong> ${result.temp_password}<br><br>Lo sviluppatore dovrà cambiare la password al primo accesso e configurare l'autenticazione a due fattori.`,
+          ? `<strong>Email:</strong> ${devEmail}<br><br><strong>Temporary password:</strong> ${result.temp_password}<br><br><strong>Important:</strong><br>1. Log in at <a href="https://agenticsrl.com">agenticsrl.com</a><br>2. You will be asked to set a new password (min 8 chars, uppercase, lowercase, number)<br>3. Set up two-factor authentication (2FA) — mandatory`
+          : `<strong>Email:</strong> ${devEmail}<br><br><strong>Password temporanea:</strong> ${result.temp_password}<br><br><strong>Importante:</strong><br>1. Accedi su <a href="https://agenticsrl.com">agenticsrl.com</a><br>2. Ti verrà chiesto di impostare una nuova password (min 8 caratteri, maiuscole, minuscole, numero)<br>3. Configura l'autenticazione a due fattori (2FA) — obbligatoria`,
         next_steps: isEn
-          ? 'Share the credentials with the developer securely. On first login they will be asked to set a new password.'
-          : 'Comunica le credenziali allo sviluppatore in modo sicuro. Al primo login gli verrà richiesto di impostare una nuova password.',
+          ? 'Log in with the credentials above and follow the setup steps.'
+          : 'Accedi con le credenziali qui sopra e segui i passaggi di configurazione.',
         cta_url: 'https://agenticsrl.com',
-        cta_label: isEn ? 'Open Dashboard →' : 'Apri il Gestionale →',
+        cta_label: isEn ? 'Log in now →' : 'Accedi ora →',
         secondary_note: isEn
-          ? 'This email contains sensitive credentials. Do not forward it.'
-          : 'Questa email contiene credenziali sensibili. Non inoltrarla.',
+          ? 'This email contains your credentials. Do not share it.'
+          : 'Questa email contiene le tue credenziali. Non condividerla.',
         footer_text: isEn
-          ? 'Automatic notification — account creation — Agentics dashboard.'
-          : 'Notifica automatica creazione account — gestionale Agentics.',
+          ? 'Automatic notification — Agentics platform.'
+          : 'Notifica automatica — piattaforma Agentics.',
       },
     })
 
