@@ -5,6 +5,7 @@ import { safeErrorMessage } from '../lib/errors'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Modal } from '../components/ui/Modal'
+import { useT } from '../hooks/useCurrentRole'
 
 interface Spunto {
   id: string
@@ -22,6 +23,7 @@ function fmtDateTime(d: string) {
 const BRAND = '#005DEF'
 
 export const SpuntiPage = () => {
+  const t = useT()
   const [rows, setRows] = useState<Spunto[]>([])
   const [loading, setLoading] = useState(true)
   const [input, setInput] = useState('')
@@ -78,7 +80,7 @@ export const SpuntiPage = () => {
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Scrivi un nuovo spunto, idea o cosa da sistemare..."
+          placeholder={t('spunti.placeholder')}
           style={{
             flex: 1, fontSize: 14, border: '1px solid #E5E7EB', padding: '12px 16px',
             outline: 'none', borderRadius: 6, backgroundColor: '#fff',
@@ -90,7 +92,7 @@ export const SpuntiPage = () => {
         />
         <Button onClick={addSpunto} disabled={saving || !input.trim()}>
           <Plus className="w-4 h-4" />
-          {saving ? 'Salvo...' : 'Aggiungi'}
+          {saving ? t('common.saving') : t('common.add')}
         </Button>
       </div>
 
@@ -105,19 +107,19 @@ export const SpuntiPage = () => {
               textDecoration: 'underline',
             }}
           >
-            {showCompleted ? `Nascondi completati (${completed.length})` : `Mostra completati (${completed.length})`}
+            {showCompleted ? `${t('spunti.hide_done')} (${completed.length})` : `${t('spunti.show_done')} (${completed.length})`}
           </button>
         </div>
       )}
 
       {/* List */}
       {loading ? (
-        <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
+        <div style={{ color: '#6C7F94', fontSize: 13 }}>{t('common.loading')}</div>
       ) : visible.length === 0 ? (
         <EmptyState
           icon={Lightbulb}
-          title="Nessuno spunto"
-          description="Scrivi il primo spunto, idea o cosa da sistemare."
+          title={t('spunti.empty')}
+          description={t('spunti.empty_desc')}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -176,7 +178,7 @@ export const SpuntiPage = () => {
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#DC2626')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#D1D5DB')}
-                title="Elimina"
+                title={t('common.delete')}
               >
                 <Trash2 style={{ width: 14, height: 14 }} />
               </button>
@@ -188,16 +190,16 @@ export const SpuntiPage = () => {
       {/* Contatore */}
       {!loading && rows.length > 0 && (
         <div style={{ marginTop: 20, fontSize: 12, color: '#9CA3AF', textAlign: 'center' }}>
-          {pending.length} da fare · {completed.length} completati
+          {pending.length} {t('spunti.todo')} · {completed.length} {t('spunti.done')}
         </div>
       )}
 
       {/* Delete modal */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Elimina spunto" width="360px">
-        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Sei sicuro di voler eliminare questo spunto?</p>
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title={t('spunti.delete')} width="360px">
+        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>{t('spunti.delete_confirm')}</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" onClick={() => setDeleteId(null)}>Annulla</Button>
-          <Button variant="danger" onClick={remove}>Elimina</Button>
+          <Button variant="ghost" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
+          <Button variant="danger" onClick={remove}>{t('common.delete')}</Button>
         </div>
       </Modal>
     </div>

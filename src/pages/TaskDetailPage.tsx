@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { taskSchema, validate, type ValidationErrors } from '../lib/validation'
 import { safeErrorMessage } from '../lib/errors'
 import type { Task, Progetto, StatoTask, PrioritaTask, CategoriaTask, TaskCommento, OrgMember } from '../types'
+import { useT } from '../hooks/useCurrentRole'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
@@ -22,20 +23,6 @@ import {
 const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
 const BRAND = '#005DEF'
-
-const statoBadge: Record<StatoTask, { label: string; color: 'gray' | 'purple' | 'blue' | 'green' }> = {
-  todo:        { label: 'Da fare',    color: 'gray' },
-  in_progress: { label: 'In corso',   color: 'purple' },
-  in_review:   { label: 'In review',  color: 'blue' },
-  done:        { label: 'Completato', color: 'green' },
-}
-
-const prioritaBadge: Record<PrioritaTask, { label: string; color: 'green' | 'yellow' | 'orange' | 'red' }> = {
-  bassa:   { label: 'Bassa',   color: 'green' },
-  media:   { label: 'Media',   color: 'yellow' },
-  alta:    { label: 'Alta',    color: 'orange' },
-  urgente: { label: 'Urgente', color: 'red' },
-}
 
 const CATEGORIE_GRUPPI: Record<string, { label: string; items: { value: CategoriaTask; label: string }[] }> = {
   sviluppo: {
@@ -114,6 +101,20 @@ interface Props {
 }
 
 export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) => {
+  const t = useT()
+  const statoBadge: Record<StatoTask, { label: string; color: 'gray' | 'purple' | 'blue' | 'green' }> = {
+    todo:        { label: t('status.da_fare'),     color: 'gray' },
+    in_progress: { label: t('status.in_corso'),    color: 'purple' },
+    in_review:   { label: 'In review',             color: 'blue' },
+    done:        { label: t('status.completato'),  color: 'green' },
+  }
+  const prioritaBadge: Record<PrioritaTask, { label: string; color: 'green' | 'yellow' | 'orange' | 'red' }> = {
+    bassa:   { label: t('priority.bassa'),   color: 'green' },
+    media:   { label: t('priority.media'),   color: 'yellow' },
+    alta:    { label: t('priority.alta'),    color: 'orange' },
+    urgente: { label: t('priority.urgente'), color: 'red' },
+  }
+
   const [task, setTask] = useState<Task | null>(null)
   const [loading, setLoading] = useState(true)
   const [progetti, setProgetti] = useState<Pick<Progetto, 'id' | 'nome'>[]>([])
@@ -282,7 +283,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
     setForm(p => ({ ...p, [k]: e.target.value }))
 
   if (loading) return (
-    <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
+    <div style={{ color: '#6C7F94', fontSize: 13 }}>{t('common.loading')}</div>
   )
 
   if (!task) return null
@@ -304,11 +305,11 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
           onMouseLeave={e => (e.currentTarget.style.color = '#6C7F94')}
         >
           <ArrowLeft style={{ width: 16, height: 16 }} />
-          Torna ai Task
+          {t('task.back')}
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button size="sm" variant="ghost" onClick={openEdit}><Pencil style={{ width: 13, height: 13 }} /> Modifica</Button>
-          <Button size="sm" variant="danger" onClick={() => setDeleteConfirm(true)}><Trash2 style={{ width: 13, height: 13 }} /> Elimina</Button>
+          <Button size="sm" variant="ghost" onClick={openEdit}><Pencil style={{ width: 13, height: 13 }} /> {t('common.edit')}</Button>
+          <Button size="sm" variant="danger" onClick={() => setDeleteConfirm(true)}><Trash2 style={{ width: 13, height: 13 }} /> {t('common.delete')}</Button>
         </div>
       </div>
 
@@ -325,7 +326,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
 
         {/* Quick status change */}
         <div style={{ display: 'flex', gap: 6, marginTop: 20, paddingTop: 16, borderTop: '1px solid #F3F4F6' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', alignSelf: 'center', marginRight: 8 }}>Stato:</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', alignSelf: 'center', marginRight: 8 }}>{t('task.status_label')}</span>
           {(['todo', 'in_progress', 'in_review', 'done'] as StatoTask[]).map(s => (
             <button
               key={s}
@@ -351,9 +352,9 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Metadata card */}
           <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', padding: 20 }}>
-            <h3 style={{ fontSize: 12, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>Dettagli</h3>
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>{t('task.details')}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <InfoRow icon={<FolderOpen style={{ width: 14, height: 14 }} />} label="Progetto">
+              <InfoRow icon={<FolderOpen style={{ width: 14, height: 14 }} />} label={t('task.project')}>
                 {task.progetti?.nome ? (
                   <button
                     onClick={() => task.progetto_id && onNavigateToProgetto(task.progetto_id)}
@@ -363,20 +364,20 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
                   </button>
                 ) : <span style={{ color: '#9CA3AF' }}>—</span>}
               </InfoRow>
-              <InfoRow icon={<User style={{ width: 14, height: 14 }} />} label="Assegnatario">
+              <InfoRow icon={<User style={{ width: 14, height: 14 }} />} label={t('task.assignee')}>
                 <span style={{ fontSize: 13, color: task.assegnatario ? '#1A2332' : '#9CA3AF' }}>{task.assegnatario ?? '—'}</span>
               </InfoRow>
-              <InfoRow icon={<Calendar style={{ width: 14, height: 14 }} />} label="Scadenza">
+              <InfoRow icon={<Calendar style={{ width: 14, height: 14 }} />} label={t('task.due')}>
                 <span style={{ fontSize: 13, color: task.scadenza ? '#1A2332' : '#9CA3AF' }}>{task.scadenza ? fmtDate(task.scadenza) : '—'}</span>
               </InfoRow>
-              <InfoRow icon={<Tag style={{ width: 14, height: 14 }} />} label="Categoria">
+              <InfoRow icon={<Tag style={{ width: 14, height: 14 }} />} label={t('task.category')}>
                 <span style={{ fontSize: 13, color: task.categoria ? '#1A2332' : '#9CA3AF' }}>{task.categoria ? getCategoriaLabel(task.categoria) : '—'}</span>
               </InfoRow>
-              <InfoRow icon={<Clock style={{ width: 14, height: 14 }} />} label="Creato il">
+              <InfoRow icon={<Clock style={{ width: 14, height: 14 }} />} label={t('task.created_at')}>
                 <span style={{ fontSize: 13, color: '#4B5563' }}>{fmtDateTime(task.created_at)}</span>
               </InfoRow>
               {(task.partecipanti ?? []).length > 0 && (
-                <InfoRow icon={<Users style={{ width: 14, height: 14 }} />} label="Partecipanti">
+                <InfoRow icon={<Users style={{ width: 14, height: 14 }} />} label={t('task.participants')}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {(task.partecipanti ?? []).map(email => {
                       const m = orgMembers.find(o => o.email === email)
@@ -398,7 +399,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ fontSize: 12, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
                 <CheckSquare style={{ width: 13, height: 13, display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />
-                Checklist {checkTotal > 0 && `(${checkDone}/${checkTotal})`}
+                {t('task.checklist')} {checkTotal > 0 && `(${checkDone}/${checkTotal})`}
               </h3>
             </div>
 
@@ -436,7 +437,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
               <input
                 value={newCheckItem}
                 onChange={e => setNewCheckItem(e.target.value)}
-                placeholder="Aggiungi elemento..."
+                placeholder={t('task.checklist_add')}
                 style={{ flex: 1, fontSize: 12, border: '1px solid #E5E7EB', padding: '7px 10px', outline: 'none', borderRadius: 4 }}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addChecklistItem() } }}
               />
@@ -444,7 +445,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
                 onClick={addChecklistItem}
                 style={{ background: BRAND, color: '#fff', border: 'none', padding: '7px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, borderRadius: 4 }}
               >
-                <Plus style={{ width: 12, height: 12 }} /> Aggiungi
+                <Plus style={{ width: 12, height: 12 }} /> {t('common.add')}
               </button>
             </div>
           </div>
@@ -453,12 +454,12 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
         {/* Right column — Comments */}
         <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', padding: 20, alignSelf: 'start' }}>
           <h3 style={{ fontSize: 12, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>
-            Commenti ({commenti.length})
+            {t('task.comments')} ({commenti.length})
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
             {commenti.length === 0 && (
-              <div style={{ fontSize: 13, color: '#9CA3AF', padding: '20px 0', textAlign: 'center' }}>Nessun commento ancora</div>
+              <div style={{ fontSize: 13, color: '#9CA3AF', padding: '20px 0', textAlign: 'center' }}>{t('task.comments_empty')}</div>
             )}
             {commenti.map((c, idx) => (
               <div key={idx} style={{ padding: '10px 14px', backgroundColor: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: 6 }}>
@@ -475,7 +476,7 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
             <input
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
-              placeholder="Scrivi un commento..."
+              placeholder={t('task.comments_ph')}
               style={{ flex: 1, fontSize: 12, border: '1px solid #E5E7EB', padding: '8px 12px', outline: 'none', borderRadius: 4 }}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addComment() } }}
             />
@@ -490,82 +491,82 @@ export const TaskDetailPage = ({ taskId, onBack, onNavigateToProgetto }: Props) 
       </div>
 
       {/* Edit modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title="Modifica task">
+      <Modal open={modal} onClose={() => setModal(false)} title={t('task.edit')}>
         <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {errors._form && <p style={{ fontSize: 12, color: '#DC2626' }}>{errors._form}</p>}
-          <FormField label="Titolo" required error={errors.titolo}>
-            <Input value={form.titolo} onChange={f('titolo')} placeholder="Titolo del task" maxLength={200} required />
+          <FormField label={t('task.title')} required error={errors.titolo}>
+            <Input value={form.titolo} onChange={f('titolo')} placeholder={t('task.title_ph')} maxLength={200} required />
           </FormField>
-          <FormField label="Progetto" error={errors.progetto_id}>
+          <FormField label={t('task.project')} error={errors.progetto_id}>
             <Select value={form.progetto_id ?? ''} onChange={f('progetto_id')}>
-              <option value="">— Nessun progetto —</option>
+              <option value="">{t('common.no_project')}</option>
               {progetti.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </Select>
           </FormField>
-          <FormField label="Descrizione" error={errors.descrizione}>
-            <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder="Dettagli del task..." maxLength={2000} />
+          <FormField label={t('task.description')} error={errors.descrizione}>
+            <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder={t('task.description_ph')} maxLength={2000} />
           </FormField>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            <FormField label="Stato">
+            <FormField label={t('task.status')}>
               <Select value={form.stato} onChange={f('stato')}>
-                <option value="todo">Da fare</option>
-                <option value="in_progress">In corso</option>
+                <option value="todo">{t('status.da_fare')}</option>
+                <option value="in_progress">{t('status.in_corso')}</option>
                 <option value="in_review">In review</option>
-                <option value="done">Completato</option>
+                <option value="done">{t('status.completato')}</option>
               </Select>
             </FormField>
-            <FormField label="Priorità">
+            <FormField label={t('task.priority')}>
               <Select value={form.priorita} onChange={f('priorita')}>
-                <option value="bassa">Bassa</option>
-                <option value="media">Media</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
+                <option value="bassa">{t('priority.bassa')}</option>
+                <option value="media">{t('priority.media')}</option>
+                <option value="alta">{t('priority.alta')}</option>
+                <option value="urgente">{t('priority.urgente')}</option>
               </Select>
             </FormField>
-            <FormField label="Scadenza">
+            <FormField label={t('task.due')}>
               <Input type="date" value={form.scadenza ?? ''} onChange={f('scadenza')} />
             </FormField>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <FormField label="Categoria">
+            <FormField label={t('task.category')}>
               <Select value={form.categoria ?? ''} onChange={f('categoria')}>
-                <option value="">— Nessuna —</option>
+                <option value="">{t('common.none')}</option>
                 {Object.values(CATEGORIE_GRUPPI).map(g =>
                   g.items.map(i => <option key={i.value} value={i.value}>{g.label} / {i.label}</option>)
                 )}
               </Select>
             </FormField>
-            <FormField label="Assegnatario">
+            <FormField label={t('task.assignee')}>
               <UserPicker
                 single
                 members={orgMembers}
                 value={form.assegnatario ? [form.assegnatario] : []}
                 onChange={emails => setForm(p => ({ ...p, assegnatario: emails[0] ?? null }))}
-                placeholder="Seleziona assegnatario..."
+                placeholder={t('task.assignee_ph')}
               />
             </FormField>
           </div>
-          <FormField label="Partecipanti">
+          <FormField label={t('task.participants')}>
             <UserPicker
               members={orgMembers}
               value={form.partecipanti ?? []}
               onChange={emails => setForm(p => ({ ...p, partecipanti: emails }))}
-              placeholder="Aggiungi persone al task..."
+              placeholder={t('task.participants_ph')}
             />
           </FormField>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
-            <Button type="button" variant="ghost" onClick={() => setModal(false)}>Annulla</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Salvataggio...' : 'Salva'}</Button>
+            <Button type="button" variant="ghost" onClick={() => setModal(false)}>{t('common.cancel')}</Button>
+            <Button type="submit" disabled={saving}>{saving ? t('common.saving') : t('common.save')}</Button>
           </div>
         </form>
       </Modal>
 
       {/* Delete confirm modal */}
-      <Modal open={deleteConfirm} onClose={() => setDeleteConfirm(false)} title="Elimina task" width="360px">
-        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Sei sicuro di voler eliminare questo task? L'operazione non è reversibile.</p>
+      <Modal open={deleteConfirm} onClose={() => setDeleteConfirm(false)} title={t('task.delete')} width="360px">
+        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>{t('task.delete_confirm')}</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" onClick={() => setDeleteConfirm(false)}>Annulla</Button>
-          <Button variant="danger" onClick={remove}>Elimina</Button>
+          <Button variant="ghost" onClick={() => setDeleteConfirm(false)}>{t('common.cancel')}</Button>
+          <Button variant="danger" onClick={remove}>{t('common.delete')}</Button>
         </div>
       </Modal>
     </div>

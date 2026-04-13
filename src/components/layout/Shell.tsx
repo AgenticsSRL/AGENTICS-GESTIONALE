@@ -19,32 +19,15 @@ import { GestioneUtentiPage }        from '../../pages/GestioneUtentiPage'
 import { ChangePasswordPage }        from '../../pages/ChangePasswordPage'
 import { useIdleTimeout }            from '../../hooks/useIdleTimeout'
 import { useIsMobile }               from '../../hooks/useIsMobile'
-import { useCurrentRole, clearRoleCache } from '../../hooks/useCurrentRole'
+import { useCurrentRole, useT, clearRoleCache } from '../../hooks/useCurrentRole'
 
 const BRAND = '#005DEF'
-
-const pageTitle: Record<Page, string> = {
-  dashboard:               'Dashboard',
-  clienti:                 'Clienti',
-  cliente_detail:          'Dettaglio Cliente',
-  progetti:                'Progetti',
-  progetto_detail:         'Dettaglio Progetto',
-  task:                    'Task',
-  task_detail:             'Dettaglio Task',
-  contabilita:             'Contabilità',
-  spunti:                  'Spunti',
-  sicurezza:               'Sicurezza',
-  security_events:         'Security Events',
-  calendario:              'Calendario',
-  profilo:                 'Area Privata',
-  gestione_sviluppatori:   'Gestione Sviluppatori',
-  gestione_utenti:         'Gestione Utenti',
-}
 
 export const Shell = () => {
   useIdleTimeout()
   const isMobile = useIsMobile()
   const { role, mustChangePassword, loading: roleLoading } = useCurrentRole()
+  const t = useT()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [page, setPage] = useState<Page>('dashboard')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
@@ -177,7 +160,7 @@ export const Shell = () => {
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
           }}>
-            {pageTitle[page]}
+            {t(`page.${page}`)}
           </h1>
         </header>
 

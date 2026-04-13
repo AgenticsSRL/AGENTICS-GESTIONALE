@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { sendNotification } from '../lib/notifications'
-import { useCurrentRole } from '../hooks/useCurrentRole'
+import { useCurrentRole, useT } from '../hooks/useCurrentRole'
 
 const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
 
@@ -39,14 +39,6 @@ interface Evento {
 
 type TipoEvento = 'appuntamento' | 'meeting' | 'scadenza' | 'promemoria' | 'altro'
 
-const TIPO_LABEL: Record<TipoEvento, string> = {
-  appuntamento: 'Appuntamento',
-  meeting: 'Meeting',
-  scadenza: 'Scadenza',
-  promemoria: 'Promemoria',
-  altro: 'Altro',
-}
-
 const COLORI = ['#1A2332', '#005DEF', '#6C7F94', '#DC2626', '#059669', '#D97706', '#7C3AED']
 
 /* ─── Hook ─── */
@@ -66,10 +58,6 @@ const useWindowWidth = () => {
 const pad = (n: number) => String(n).padStart(2, '0')
 
 const fmtDateISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-
-const GIORNI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
-const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
-
 
 const parseTimeToMinutes = (time: string): number => {
   const [h, m] = time.split(':').map(Number)
@@ -172,6 +160,19 @@ export const CalendarioPage = () => {
   const isMobile = windowWidth < 640
   const { role } = useCurrentRole()
   const isDeveloper = role === 'developer'
+  const t = useT()
+
+  const giorni = useMemo(() => [
+    t('cal.day.lun'), t('cal.day.mar'), t('cal.day.mer'), t('cal.day.gio'), t('cal.day.ven'), t('cal.day.sab'), t('cal.day.dom'),
+  ], [t])
+  const mesi = useMemo(() => Array.from({ length: 12 }, (_, i) => t(`cal.month.${i}`)), [t])
+  const tipoLabel = useMemo((): Record<TipoEvento, string> => ({
+    appuntamento: t('cal.type.appuntamento'),
+    meeting: 'Meeting',
+    scadenza: t('cal.type.scadenza'),
+    promemoria: t('cal.type.promemoria'),
+    altro: t('cal.type.altro'),
+  }), [t])
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [eventi, setEventi] = useState<Evento[]>([])
@@ -325,7 +326,7 @@ export const CalendarioPage = () => {
   }), [eventi])
   const todayStr = fmtDateISO(today)
 
-  if (loading) return <div style={{ color: '#6C7F94', fontSize: 13, padding: 32 }}>Caricamento...</div>
+  if (loading) return <div style={{ color: '#6C7F94', fontSize: 13, padding: 32 }}>{t('common.loading')}</div>
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -344,17 +345,17 @@ export const CalendarioPage = () => {
           </button>
           <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: '#1A2332', flex: 1 }}>
             {vista === 'mese'
-              ? `${MESI[month]} ${year}`
+              ? `${mesi[month]} ${year}`
               : isMobile
-                ? `${pad(currentDate.getDate())} ${MESI[currentDate.getMonth()].slice(0, 3)} ${currentDate.getFullYear()}`
+                ? `${pad(currentDate.getDate())} ${mesi[currentDate.getMonth()].slice(0, 3)} ${currentDate.getFullYear()}`
                 : (() => {
                     const wk = getWeekDays(currentDate)
                     const s = wk[0]; const e = wk[6]
-                    return `${pad(s.getDate())} ${MESI[s.getMonth()].slice(0, 3)} – ${pad(e.getDate())} ${MESI[e.getMonth()].slice(0, 3)} ${e.getFullYear()}`
+                    return `${pad(s.getDate())} ${mesi[s.getMonth()].slice(0, 3)} – ${pad(e.getDate())} ${mesi[e.getMonth()].slice(0, 3)} ${e.getFullYear()}`
                   })()
             }
           </span>
-          <Button size="sm" variant="ghost" onClick={goToday}>Oggi</Button>
+          <Button size="sm" variant="ghost" onClick={goToday}>{t('common.today')}</Button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: isMobile ? 'space-between' : 'flex-end' }}>
           {!isMobile && (
@@ -370,7 +371,7 @@ export const CalendarioPage = () => {
                     color: vista === v ? '#fff' : '#6C7F94',
                   }}
                 >
-                  {v === 'mese' ? 'Mese' : 'Settimana'}
+                  {v === 'mese' ? t('cal.month') : t('cal.week')}
                 </button>
               ))}
             </div>
@@ -388,12 +389,12 @@ export const CalendarioPage = () => {
                     color: vista === v ? '#fff' : '#6C7F94',
                   }}
                 >
-                  {v === 'mese' ? 'Mese' : 'Giorno'}
+                  {v === 'mese' ? t('cal.month') : t('cal.day')}
                 </button>
               ))}
             </div>
           )}
-          <Button size="sm" onClick={() => openNew()}><Plus style={{ width: 12, height: 12 }} /> {isMobile ? 'Nuovo' : 'Nuovo evento'}</Button>
+          <Button size="sm" onClick={() => openNew()}><Plus style={{ width: 12, height: 12 }} /> {isMobile ? t('common.new') : t('cal.new_event')}</Button>
         </div>
       </div>
 
@@ -409,6 +410,8 @@ export const CalendarioPage = () => {
           onNewEvent={openNew}
           onClickEvent={setDetailEvent}
           isMobile={isMobile}
+          giorni={giorni}
+          moreLabel={t('cal.more')}
         />
       ) : (
         <WeekView
@@ -418,6 +421,7 @@ export const CalendarioPage = () => {
           onNewEvent={openNew}
           onClickEvent={setDetailEvent}
           isMobile={isMobile}
+          giorni={giorni}
         />
       )}
 
@@ -429,6 +433,8 @@ export const CalendarioPage = () => {
           onClose={() => setSelectedDate(null)}
           onNew={() => openNew(selectedDate)}
           onClickEvent={setDetailEvent}
+          tipoLabel={tipoLabel}
+          t={t}
         />
       )}
 
@@ -438,25 +444,25 @@ export const CalendarioPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <div style={{ width: 10, height: 10, backgroundColor: detailEvent.colore, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{TIPO_LABEL[detailEvent.tipo]}</span>
+              <span style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{tipoLabel[detailEvent.tipo]}</span>
             </div>
             <div style={{ borderTop: '1px solid #F3F4F6' }}>
-              <DetailRow label="Data" value={detailEvent.data_inizio === detailEvent.data_fine ? formatDateLong(detailEvent.data_inizio) : `${formatDateLong(detailEvent.data_inizio)} – ${formatDateLong(detailEvent.data_fine)}`} />
-              <DetailRow label="Orario" value={`${detailEvent.ora_inizio} – ${detailEvent.ora_fine}`} />
-              {detailEvent.luogo && <DetailRow label="Luogo" value={detailEvent.luogo} />}
-              {detailEvent.partecipanti && <DetailRow label="Partecipanti" value={detailEvent.partecipanti} />}
-              {detailEvent.promemoria_minuti != null && <DetailRow label="Promemoria" value={`${detailEvent.promemoria_minuti} min prima`} />}
+              <DetailRow label={t('cal.start_date')} value={detailEvent.data_inizio === detailEvent.data_fine ? formatDateLong(detailEvent.data_inizio) : `${formatDateLong(detailEvent.data_inizio)} – ${formatDateLong(detailEvent.data_fine)}`} />
+              <DetailRow label={t('cal.start_time')} value={`${detailEvent.ora_inizio} – ${detailEvent.ora_fine}`} />
+              {detailEvent.luogo && <DetailRow label={t('cal.location')} value={detailEvent.luogo} />}
+              {detailEvent.partecipanti && <DetailRow label={t('cal.attendees')} value={detailEvent.partecipanti} />}
+              {detailEvent.promemoria_minuti != null && <DetailRow label={t('cal.reminder')} value={`${detailEvent.promemoria_minuti} ${t('cal.reminder_min')}`} />}
             </div>
             {detailEvent.descrizione && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontWeight: 600 }}>Note</div>
+                <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontWeight: 600 }}>{t('cal.notes')}</div>
                 <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{detailEvent.descrizione}</div>
               </div>
             )}
             {(!isDeveloper || detailEvent.user_id === currentUserId) && (
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 20 }}>
-                <Button size="sm" variant="ghost" onClick={() => openEdit(detailEvent)}><Pencil style={{ width: 11, height: 11 }} /> Modifica</Button>
-                <Button size="sm" variant="danger" onClick={() => { setDeleteId(detailEvent.id); setDetailEvent(null) }}><Trash2 style={{ width: 11, height: 11 }} /> Elimina</Button>
+                <Button size="sm" variant="ghost" onClick={() => openEdit(detailEvent)}><Pencil style={{ width: 11, height: 11 }} /> {t('common.edit')}</Button>
+                <Button size="sm" variant="danger" onClick={() => { setDeleteId(detailEvent.id); setDetailEvent(null) }}><Trash2 style={{ width: 11, height: 11 }} /> {t('common.delete')}</Button>
               </div>
             )}
           </div>
@@ -464,49 +470,49 @@ export const CalendarioPage = () => {
       </Modal>
 
       {/* Create/Edit modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica evento' : 'Nuovo evento'} width={isMobile ? 'calc(100vw - 32px)' : '520px'}>
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? t('cal.edit_event') : t('cal.new_event')} width={isMobile ? 'calc(100vw - 32px)' : '520px'}>
         <form onSubmit={saveEvento} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {saveError && <p style={{ fontSize: 12, color: '#DC2626' }}>{saveError}</p>}
-          <FormField label="Titolo" required>
+          <FormField label={t('cal.title')} required>
             <Input value={form.titolo} onChange={e => setForm(p => ({ ...p, titolo: e.target.value }))} maxLength={200} />
           </FormField>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-            <FormField label="Data inizio" required>
+            <FormField label={t('cal.start_date')} required>
               <Input type="date" value={form.data_inizio} onChange={e => setForm(p => ({ ...p, data_inizio: e.target.value, data_fine: p.data_fine < e.target.value ? e.target.value : p.data_fine }))} />
             </FormField>
-            <FormField label="Data fine" required>
+            <FormField label={t('cal.end_date')} required>
               <Input type="date" value={form.data_fine} onChange={e => setForm(p => ({ ...p, data_fine: e.target.value }))} min={form.data_inizio} />
             </FormField>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <FormField label="Ora inizio" required>
+            <FormField label={t('cal.start_time')} required>
               <Input type="time" value={form.ora_inizio} onChange={e => setForm(p => ({ ...p, ora_inizio: e.target.value }))} />
             </FormField>
-            <FormField label="Ora fine" required>
+            <FormField label={t('cal.end_time')} required>
               <Input type="time" value={form.ora_fine} onChange={e => setForm(p => ({ ...p, ora_fine: e.target.value }))} />
             </FormField>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-            <FormField label="Tipo">
+            <FormField label={t('cal.type')}>
               <Select value={form.tipo} onChange={e => setForm(p => ({ ...p, tipo: e.target.value as TipoEvento }))}>
-                {Object.entries(TIPO_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {Object.entries(tipoLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </Select>
             </FormField>
-            <FormField label="Promemoria (min)">
+            <FormField label={t('cal.reminder_min_label')}>
               <Input type="number" value={form.promemoria_minuti ?? ''} onChange={e => setForm(p => ({ ...p, promemoria_minuti: e.target.value ? Number(e.target.value) : null }))} min={0} />
             </FormField>
           </div>
-          <FormField label="Luogo">
-            <Input value={form.luogo} onChange={e => setForm(p => ({ ...p, luogo: e.target.value }))} maxLength={300} placeholder="Indirizzo o link meeting" />
+          <FormField label={t('cal.location')}>
+            <Input value={form.luogo} onChange={e => setForm(p => ({ ...p, luogo: e.target.value }))} maxLength={300} placeholder={t('cal.location_ph')} />
           </FormField>
-          <FormField label="Partecipanti">
-            <Input value={form.partecipanti} onChange={e => setForm(p => ({ ...p, partecipanti: e.target.value }))} maxLength={500} placeholder="Nome, email..." />
+          <FormField label={t('cal.attendees')}>
+            <Input value={form.partecipanti} onChange={e => setForm(p => ({ ...p, partecipanti: e.target.value }))} maxLength={500} placeholder={t('cal.attendees_ph')} />
           </FormField>
-          <FormField label="Note">
+          <FormField label={t('cal.notes')}>
             <TextArea value={form.descrizione} onChange={e => setForm(p => ({ ...p, descrizione: e.target.value }))} maxLength={1000} style={{ minHeight: 70 }} />
           </FormField>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94', marginBottom: 6 }}>Colore</div>
+            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94', marginBottom: 6 }}>{t('cal.color')}</div>
             <div style={{ display: 'flex', gap: 6 }}>
               {COLORI.map(c => (
                 <button
@@ -522,18 +528,18 @@ export const CalendarioPage = () => {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 6 }}>
-            <Button type="button" variant="ghost" onClick={() => setModal(false)}>Annulla</Button>
-            <Button type="submit" disabled={saving || !form.titolo.trim()}>{saving ? 'Salvataggio...' : editing ? 'Salva' : 'Crea evento'}</Button>
+            <Button type="button" variant="ghost" onClick={() => setModal(false)}>{t('common.cancel')}</Button>
+            <Button type="submit" disabled={saving || !form.titolo.trim()}>{saving ? t('common.saving') : editing ? t('common.save') : t('cal.create')}</Button>
           </div>
         </form>
       </Modal>
 
       {/* Delete modal */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Elimina evento" width={isMobile ? 'calc(100vw - 32px)' : '360px'}>
-        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Eliminare questo evento dal calendario?</p>
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title={t('cal.delete_event')} width={isMobile ? 'calc(100vw - 32px)' : '360px'}>
+        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>{t('cal.delete_confirm')}</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" onClick={() => setDeleteId(null)}>Annulla</Button>
-          <Button variant="danger" onClick={removeEvento}>Elimina</Button>
+          <Button variant="ghost" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
+          <Button variant="danger" onClick={removeEvento}>{t('common.delete')}</Button>
         </div>
       </Modal>
     </div>
@@ -557,18 +563,19 @@ const formatDateLong = (d: string) => {
 /* ── Month View ── */
 
 const MonthView = ({
-  year, month, todayStr, selectedDate, eventsOnDate, onSelectDate, onNewEvent, onClickEvent, isMobile,
+  year, month, todayStr, selectedDate, eventsOnDate, onSelectDate, onNewEvent, onClickEvent, isMobile, giorni, moreLabel,
 }: {
   year: number; month: number; todayStr: string; selectedDate: string | null
   eventsOnDate: (d: string) => Evento[]; onSelectDate: (d: string) => void
   onNewEvent: (d: string) => void; onClickEvent: (e: Evento) => void; isMobile: boolean
+  giorni: string[]; moreLabel: string
 }) => {
   const days = getMonthDays(year, month)
   return (
     <div style={{ border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
       {/* Header */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-        {GIORNI.map(g => (
+        {giorni.map(g => (
           <div key={g} style={{ padding: '8px 0', textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid #E5E7EB' }}>
             {g}
           </div>
@@ -644,7 +651,7 @@ const MonthView = ({
                     </div>
                   ))}
                   {sorted.length > 3 && (
-                    <div style={{ fontSize: 9, color: '#6C7F94', padding: '1px 4px' }}>+{sorted.length - 3} altri</div>
+                    <div style={{ fontSize: 9, color: '#6C7F94', padding: '1px 4px' }}>+{sorted.length - 3} {moreLabel}</div>
                   )}
                 </div>
               )}
@@ -663,10 +670,11 @@ const FIRST_HOUR = 7
 const LAST_HOUR = 23
 
 const WeekView = ({
-  baseDate, todayStr, eventsOnDate, onNewEvent, onClickEvent, isMobile,
+  baseDate, todayStr, eventsOnDate, onNewEvent, onClickEvent, isMobile, giorni,
 }: {
   baseDate: Date; todayStr: string; isMobile: boolean
   eventsOnDate: (d: string) => Evento[]; onNewEvent: (d: string) => void; onClickEvent: (e: Evento) => void
+  giorni: string[]
 }) => {
   const allWeekDays = getWeekDays(baseDate)
   // Su mobile mostra solo il giorno corrente (giornaliero)
@@ -734,7 +742,7 @@ const WeekView = ({
               }}
             >
               <div style={{ fontSize: 10, fontWeight: 700, color: isSun ? '#DC2626' : isSat ? '#6C7F94' : '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {GIORNI[i]}
+                {giorni[i]}
               </div>
               <div style={{
                 fontSize: 20, fontWeight: isToday ? 700 : 400,
@@ -901,9 +909,10 @@ const WeekView = ({
 /* ── Day Detail Panel ── */
 
 const DayDetail = ({
-  dateStr, events, onClose, onNew, onClickEvent,
+  dateStr, events, onClose, onNew, onClickEvent, tipoLabel, t,
 }: {
   dateStr: string; events: Evento[]; onClose: () => void; onNew: () => void; onClickEvent: (e: Evento) => void
+  tipoLabel: Record<TipoEvento, string>; t: (key: string) => string
 }) => {
   const dt = new Date(dateStr + 'T00:00:00')
   const label = dt.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -914,12 +923,12 @@ const DayDetail = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#1A2332', textTransform: 'capitalize' }}>{label}</span>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <Button size="sm" variant="ghost" onClick={onNew}><Plus style={{ width: 11, height: 11 }} /> Nuovo</Button>
+          <Button size="sm" variant="ghost" onClick={onNew}><Plus style={{ width: 11, height: 11 }} /> {t('common.new')}</Button>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }}><X style={{ width: 14, height: 14 }} /></button>
         </div>
       </div>
       {sorted.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#9CA3AF', padding: '16px 0', textAlign: 'center' }}>Nessun evento</div>
+        <div style={{ fontSize: 12, color: '#9CA3AF', padding: '16px 0', textAlign: 'center' }}>{t('cal.no_events')}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {sorted.map(ev => (
@@ -939,7 +948,7 @@ const DayDetail = ({
                   {ev.luogo ? ` · ${ev.luogo}` : ''}
                 </div>
               </div>
-              <span style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{TIPO_LABEL[ev.tipo]}</span>
+              <span style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{tipoLabel[ev.tipo]}</span>
             </div>
           ))}
         </div>

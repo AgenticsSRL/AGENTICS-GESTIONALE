@@ -1,6 +1,6 @@
 import { LogOut, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { useCurrentRole } from '../../hooks/useCurrentRole'
+import { useCurrentRole, useT } from '../../hooks/useCurrentRole'
 import logoWordmark from '../../assets/logo-agentics-wordmark.svg'
 
 export type Page =
@@ -22,19 +22,34 @@ export type Page =
 
 const BRAND = '#005DEF'
 
-const navItems: { id: Page; label: string; adminOnly?: boolean; developerHidden?: boolean }[] = [
-  { id: 'dashboard',             label: 'Dashboard' },
-  { id: 'clienti',               label: 'Clienti',             developerHidden: true },
-  { id: 'progetti',              label: 'Progetti' },
-  { id: 'task',                  label: 'Task' },
-  { id: 'contabilita',           label: 'Contabilità',         developerHidden: true },
-  { id: 'spunti',                label: 'Spunti' },
-  { id: 'sicurezza',             label: 'Sicurezza',           developerHidden: true },
-  { id: 'security_events',       label: 'Security Events',     adminOnly: true },
-  { id: 'calendario',            label: 'Calendario' },
-  { id: 'gestione_sviluppatori', label: 'Sviluppatori',        adminOnly: true },
-  { id: 'gestione_utenti',       label: 'Gestione Utenti',     adminOnly: true },
-  { id: 'profilo',               label: 'Area Privata' },
+const navItemI18nKey: Record<string, string> = {
+  dashboard: 'nav.dashboard',
+  clienti: 'nav.clienti',
+  progetti: 'nav.progetti',
+  task: 'nav.task',
+  contabilita: 'nav.contabilita',
+  spunti: 'nav.spunti',
+  sicurezza: 'nav.sicurezza',
+  security_events: 'nav.security_events',
+  calendario: 'nav.calendario',
+  profilo: 'nav.profilo',
+  gestione_sviluppatori: 'nav.sviluppatori',
+  gestione_utenti: 'nav.gestione_utenti',
+}
+
+const navItems: { id: Page; adminOnly?: boolean; developerHidden?: boolean }[] = [
+  { id: 'dashboard' },
+  { id: 'clienti',               developerHidden: true },
+  { id: 'progetti' },
+  { id: 'task' },
+  { id: 'contabilita',           developerHidden: true },
+  { id: 'spunti' },
+  { id: 'sicurezza',             developerHidden: true },
+  { id: 'security_events',       adminOnly: true },
+  { id: 'calendario' },
+  { id: 'gestione_sviluppatori', adminOnly: true },
+  { id: 'gestione_utenti',       adminOnly: true },
+  { id: 'profilo' },
 ]
 
 interface SidebarProps {
@@ -45,6 +60,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
   const { role, loading: roleLoading } = useCurrentRole()
+  const t = useT()
   const isAdmin = role === 'admin'
   const isDeveloper = role === 'developer'
 
@@ -54,7 +70,6 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
     return true
   })
 
-  // While role is loading, show all non-adminOnly items to avoid flicker
   const displayItems = roleLoading
     ? navItems.filter(n => !n.adminOnly)
     : visibleItems
@@ -72,7 +87,6 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
       position: 'sticky',
       top: 0,
     }}>
-      {/* Logo + close button */}
       <div style={{
         padding: '0 16px',
         borderBottom: '1px solid rgba(255,255,255,0.15)',
@@ -97,7 +111,6 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
         )}
       </div>
 
-      {/* Nav */}
       <nav style={{
         flex: 1,
         padding: '12px 8px',
@@ -106,7 +119,8 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
         gap: 2,
         overflowY: 'auto',
       }}>
-        {displayItems.map(({ id, label }) => {
+        {displayItems.map(({ id }) => {
+          const label = t(navItemI18nKey[id] ?? id)
           const active =
             current === id ||
             (id === 'clienti'   && current === 'cliente_detail') ||
@@ -151,7 +165,6 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
         })}
       </nav>
 
-      {/* Logout */}
       <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.15)' }}>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -166,7 +179,7 @@ export const Sidebar = ({ current, onChange, onClose }: SidebarProps) => {
           onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
         >
           <LogOut style={{ width: 16, height: 16 }} />
-          Esci
+          {t('nav.logout')}
         </button>
       </div>
     </aside>

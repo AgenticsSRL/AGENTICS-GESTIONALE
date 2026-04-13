@@ -13,6 +13,7 @@ interface Developer {
   user_id: string
   email: string
   must_change_password: boolean
+  lingua: 'it' | 'en'
   created_at: string
   projects: { id: string; nome: string }[]
 }
@@ -35,6 +36,7 @@ export const GestioneSviluppatoriPage = () => {
   // Invite modal
   const [inviteModal, setInviteModal] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteLingua, setInviteLingua] = useState<'it' | 'en'>('it')
   const [inviteProjects, setInviteProjects] = useState<string[]>([])
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
@@ -59,7 +61,7 @@ export const GestioneSviluppatoriPage = () => {
       supabase.from('progetti').select('id, nome').order('nome'),
       supabase
         .from('developer_profiles')
-        .select('user_id, email, must_change_password, created_at')
+        .select('user_id, email, must_change_password, lingua, created_at')
         .order('created_at', { ascending: false }),
     ])
 
@@ -94,6 +96,7 @@ export const GestioneSviluppatoriPage = () => {
       user_id: p.user_id,
       email: p.email ?? '—',
       must_change_password: p.must_change_password,
+      lingua: p.lingua ?? 'it',
       created_at: p.created_at,
       projects: membershipMap[p.user_id] ?? [],
     }))
@@ -130,6 +133,7 @@ export const GestioneSviluppatoriPage = () => {
       action: 'invite',
       email: inviteEmail.trim().toLowerCase(),
       project_ids: inviteProjects,
+      lingua: inviteLingua,
     })
 
     setInviting(false)
@@ -137,6 +141,13 @@ export const GestioneSviluppatoriPage = () => {
     if (!result.ok) {
       setInviteError(result.error ?? 'Errore durante la creazione.')
       return
+    }
+
+    if (inviteLingua !== 'it') {
+      await supabase
+        .from('developer_profiles')
+        .update({ lingua: inviteLingua })
+        .eq('email', result.email)
     }
 
     setInviteResult({ email: result.email, temp_password: result.temp_password })
@@ -199,6 +210,7 @@ export const GestioneSviluppatoriPage = () => {
   const resetInviteModal = () => {
     setInviteModal(false)
     setInviteEmail('')
+    setInviteLingua('it')
     setInviteProjects([])
     setInviteError(null)
     setInviteResult(null)
@@ -254,6 +266,15 @@ export const GestioneSviluppatoriPage = () => {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: '#1A2332' }}>{dev.email}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: dev.lingua === 'en' ? '#7C3AED' : '#6C7F94',
+                    backgroundColor: dev.lingua === 'en' ? '#F5F3FF' : '#F9FAFB',
+                    border: `1px solid ${dev.lingua === 'en' ? '#DDD6FE' : '#E5E7EB'}`,
+                    borderRadius: 4, padding: '2px 8px',
+                  }}>
+                    {dev.lingua === 'en' ? 'EN' : 'IT'}
+                  </span>
                   {dev.must_change_password && (
                     <span style={{
                       fontSize: 11, fontWeight: 600, color: '#D97706',
@@ -390,6 +411,27 @@ export const GestioneSviluppatoriPage = () => {
                 placeholder="developer@esempio.com"
                 required
               />
+            </FormField>
+
+            <FormField label="Lingua interfaccia">
+              <div style={{ display: 'flex', gap: 8 }}>
+                {([['it', 'Italiano'], ['en', 'English']] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setInviteLingua(val)}
+                    style={{
+                      flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 600,
+                      border: `1px solid ${inviteLingua === val ? BRAND : '#E5E7EB'}`,
+                      backgroundColor: inviteLingua === val ? '#EFF6FF' : '#fff',
+                      color: inviteLingua === val ? BRAND : '#6C7F94',
+                      borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </FormField>
 
             <div>

@@ -3,22 +3,8 @@ import { Monitor, Smartphone, Tablet, Shield, Clock, Users, FolderOpen, CheckCir
 import { supabase } from '../lib/supabase'
 import { isMobilePlatform } from '../lib/webauthn'
 import type { AccessLogEntry, Task, StatoTask, PrioritaTask } from '../types'
-import { useCurrentRole } from '../hooks/useCurrentRole'
+import { useCurrentRole, useT } from '../hooks/useCurrentRole'
 import { Badge } from '../components/ui/Badge'
-
-const statoBadge: Record<StatoTask, { label: string; color: 'gray' | 'purple' | 'blue' | 'green' }> = {
-  todo:        { label: 'Da fare',    color: 'gray' },
-  in_progress: { label: 'In corso',   color: 'purple' },
-  in_review:   { label: 'In review',  color: 'blue' },
-  done:        { label: 'Completato', color: 'green' },
-}
-
-const prioritaBadge: Record<PrioritaTask, { label: string; color: 'green' | 'yellow' | 'orange' | 'red' }> = {
-  bassa:   { label: 'Bassa',   color: 'green' },
-  media:   { label: 'Media',   color: 'yellow' },
-  alta:    { label: 'Alta',    color: 'orange' },
-  urgente: { label: 'Urgente', color: 'red' },
-}
 
 const BRAND = '#005DEF'
 
@@ -96,6 +82,7 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 
 export const ProfiloPage = () => {
   const { role } = useCurrentRole()
+  const t = useT()
   const isDeveloper = role === 'developer'
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ProfileData | null>(null)
@@ -211,10 +198,24 @@ export const ProfiloPage = () => {
     Promise.all([loadProfile(), loadMfa(), loadBiometric(), loadAccessLog(), loadStats(), loadMyTasks()]).finally(() => setLoading(false))
   }, [loadProfile, loadMfa, loadBiometric, loadAccessLog, loadStats, loadMyTasks])
 
+  const statoBadge: Record<StatoTask, { label: string; color: 'gray' | 'purple' | 'blue' | 'green' }> = {
+    todo:        { label: t('status.da_fare'),    color: 'gray' },
+    in_progress: { label: t('status.in_corso'),   color: 'purple' },
+    in_review:   { label: 'In review',            color: 'blue' },
+    done:        { label: t('status.completato'), color: 'green' },
+  }
+
+  const prioritaBadge: Record<PrioritaTask, { label: string; color: 'green' | 'yellow' | 'orange' | 'red' }> = {
+    bassa:   { label: t('priority.bassa'),   color: 'green' },
+    media:   { label: t('priority.media'),   color: 'yellow' },
+    alta:    { label: t('priority.alta'),    color: 'orange' },
+    urgente: { label: t('priority.urgente'), color: 'red' },
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: 400 }}>
-        <p className="text-sm" style={{ color: '#6C7F94' }}>Caricamento...</p>
+        <p className="text-sm" style={{ color: '#6C7F94' }}>{t('common.loading')}</p>
       </div>
     )
   }
@@ -226,20 +227,20 @@ export const ProfiloPage = () => {
 
       {/* ── Profilo ── */}
       <section>
-        <SectionHeader title="Profilo" subtitle="I tuoi dati personali e aziendali." />
+        <SectionHeader title={t('profile.title')} subtitle={t('profile.subtitle')} />
         <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
           {profile ? (
             <>
-              <InfoRow label="Nome" value={profile.nome ?? '—'} />
-              <InfoRow label="Cognome" value={profile.cognome ?? '—'} />
-              <InfoRow label="Telefono" value={profile.telefono ?? '—'} />
-              <InfoRow label="Ruolo / Posizione" value={profile.ruolo ?? '—'} />
-              <InfoRow label="Azienda" value={profile.azienda ?? '—'} />
-              <InfoRow label="Partita IVA" value={profile.partita_iva ?? '—'} />
+              <InfoRow label={t('profile.name')} value={profile.nome ?? '—'} />
+              <InfoRow label={t('profile.surname')} value={profile.cognome ?? '—'} />
+              <InfoRow label={t('profile.phone')} value={profile.telefono ?? '—'} />
+              <InfoRow label={t('profile.role')} value={profile.ruolo ?? '—'} />
+              <InfoRow label={t('profile.company')} value={profile.azienda ?? '—'} />
+              <InfoRow label={t('profile.vat')} value={profile.partita_iva ?? '—'} />
             </>
           ) : (
             <div style={{ padding: '24px 20px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
-              Profilo non ancora configurato. Contatta l'amministratore.
+              {t('profile.not_configured')}
             </div>
           )}
         </div>
@@ -247,45 +248,45 @@ export const ProfiloPage = () => {
 
       {/* ── Info Account ── */}
       <section>
-        <SectionHeader title="Account" subtitle="Informazioni del tuo account e sicurezza." />
+        <SectionHeader title={t('profile.account')} subtitle={t('profile.account_sub')} />
         <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB' }}>
-          <InfoRow label="Email" value={email} />
-          <InfoRow label="Registrato il" value={createdAt ? fmtDate(createdAt) : '—'} />
+          <InfoRow label={t('profile.email')} value={email} />
+          <InfoRow label={t('profile.registered')} value={createdAt ? fmtDate(createdAt) : '—'} />
           {!isDeveloper && isMobile && (
             <InfoRow
-              label="Accesso biometrico"
-              value={biometricDevice ? `Attivo — ${biometricDevice}` : 'Non configurato'}
+              label={t('profile.biometric')}
+              value={biometricDevice ? `${t('profile.biometric_active')} — ${biometricDevice}` : t('profile.biometric_none')}
             />
           )}
           {!isDeveloper && !isMobile && (
             <>
               <InfoRow
-                label="Autenticazione 2FA"
-                value={mfaActive ? `Attiva — ${mfaApp}` : 'Non attiva'}
+                label={t('profile.2fa')}
+                value={mfaActive ? `${t('profile.2fa_active')} — ${mfaApp}` : t('profile.2fa_inactive')}
               />
-              {mfaActive && <InfoRow label="2FA attivata il" value={mfaDate} />}
+              {mfaActive && <InfoRow label={t('profile.2fa_date')} value={mfaDate} />}
             </>
           )}
-          <InfoRow label="Accessi totali" value={String(totalAccesses)} />
+          <InfoRow label={t('profile.total_accesses')} value={String(totalAccesses)} />
         </div>
       </section>
 
       {/* ── Ultimo Accesso ── */}
       {lastAccess && (
         <section>
-          <SectionHeader title="Ultimo Accesso" />
+          <SectionHeader title={t('profile.last_access')} />
           <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
             <div style={{ padding: '16px 20px', borderRight: '1px solid #E5E7EB' }}>
               <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6C7F94', marginBottom: 6 }}>
                 <Clock style={{ width: 12, height: 12, display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                Data e Ora
+                {t('profile.date_time')}
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#1A2332' }}>{fmtDateTime(lastAccess.logged_in_at)}</div>
             </div>
             <div style={{ padding: '16px 20px', borderRight: '1px solid #E5E7EB' }}>
               <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6C7F94', marginBottom: 6 }}>
                 <Shield style={{ width: 12, height: 12, display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                Indirizzo IP
+                {t('profile.ip')}
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#1A2332' }}>{lastAccess.ip_address ?? '—'}</div>
             </div>
@@ -297,7 +298,7 @@ export const ProfiloPage = () => {
                   <>
                     <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6C7F94', marginBottom: 6 }}>
                       <DevIcon style={{ width: 12, height: 12, display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                      Dispositivo
+                      {t('profile.device')}
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#1A2332' }}>{d.label} — {parseBrowser(lastAccess.user_agent)}</div>
                   </>
@@ -310,44 +311,44 @@ export const ProfiloPage = () => {
 
       {/* ── Statistiche Personali ── */}
       <section>
-        <SectionHeader title="Le tue Statistiche" subtitle="Riepilogo del mese corrente e totali." />
+        <SectionHeader title={t('profile.stats')} subtitle={t('profile.stats_sub')} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          <StatCard icon={Users} label="Clienti" value={String(stats.clienti)} />
-          <StatCard icon={FolderOpen} label="Progetti attivi" value={String(stats.progettiAttivi)} accent="#15803D" />
-          <StatCard icon={CheckCircle2} label="Progetti completati" value={String(stats.progettiCompletati)} accent="#1D4ED8" />
-          <StatCard icon={CheckCircle2} label="Task completati (mese)" value={String(stats.taskCompletatiMese)} accent="#7C3AED" />
+          <StatCard icon={Users} label={t('profile.clients')} value={String(stats.clienti)} />
+          <StatCard icon={FolderOpen} label={t('profile.active_projects')} value={String(stats.progettiAttivi)} accent="#15803D" />
+          <StatCard icon={CheckCircle2} label={t('profile.done_projects')} value={String(stats.progettiCompletati)} accent="#1D4ED8" />
+          <StatCard icon={CheckCircle2} label={t('profile.done_tasks_month')} value={String(stats.taskCompletatiMese)} accent="#7C3AED" />
         </div>
       </section>
 
       {/* ── I miei Task ── */}
       <section>
-        <SectionHeader title="I miei Task" subtitle="Task assegnati a te o a cui partecipi." />
+        <SectionHeader title={t('profile.my_tasks')} subtitle={t('profile.my_tasks_sub')} />
         {myTasks.length === 0 ? (
           <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', padding: '24px 20px', fontSize: 13, color: '#9CA3AF', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <CheckSquare style={{ width: 16, height: 16 }} />
-            Nessun task assegnato
+            {t('profile.no_task')}
           </div>
         ) : (
           <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
             <div style={{ minWidth: 540 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 0.9fr', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
-                {['Titolo', 'Progetto', 'Stato', 'Priorità', 'Scadenza'].map(h => (
+                {[t('task.title'), t('task.project'), t('task.status'), t('task.priority'), t('task.due')].map(h => (
                   <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
                 ))}
               </div>
-              {myTasks.map(t => {
-                const sb = statoBadge[t.stato]
-                const pb = prioritaBadge[t.priorita]
+              {myTasks.map(task => {
+                const sb = statoBadge[task.stato]
+                const pb = prioritaBadge[task.priorita]
                 return (
-                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 0.9fr', padding: '12px 20px', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                  <div key={task.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1fr 0.9fr', padding: '12px 20px', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{t.titolo}</div>
-                      {t.descrizione && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{t.descrizione}</div>}
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{task.titolo}</div>
+                      {task.descrizione && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{task.descrizione}</div>}
                     </div>
-                    <span style={{ fontSize: 13, color: '#4B5563' }}>{(t.progetti as { nome?: string } | null)?.nome ?? '—'}</span>
+                    <span style={{ fontSize: 13, color: '#4B5563' }}>{(task.progetti as { nome?: string } | null)?.nome ?? '—'}</span>
                     <Badge label={sb.label} color={sb.color} />
                     <Badge label={pb.label} color={pb.color} />
-                    <span style={{ fontSize: 13, color: '#4B5563' }}>{t.scadenza ? new Date(t.scadenza).toLocaleDateString('it-IT') : '—'}</span>
+                    <span style={{ fontSize: 13, color: '#4B5563' }}>{task.scadenza ? new Date(task.scadenza).toLocaleDateString('it-IT') : '—'}</span>
                   </div>
                 )
               })}
@@ -358,7 +359,7 @@ export const ProfiloPage = () => {
 
       {/* ── Storico Accessi ── */}
       <section>
-        <SectionHeader title="Storico Accessi" subtitle={`Ultimi ${accessLog.length} accessi su ${totalAccesses} totali.`} />
+        <SectionHeader title={t('profile.access_log')} subtitle={`Ultimi ${accessLog.length} accessi su ${totalAccesses} totali.`} />
         <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', maxHeight: 420, overflowY: 'auto' }}>
           <div style={{
             display: 'grid',
@@ -369,14 +370,14 @@ export const ProfiloPage = () => {
             position: 'sticky',
             top: 0,
           }}>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>Data e Ora</span>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>IP</span>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>Dispositivo</span>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{t('profile.date_time')}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{t('profile.ip')}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{t('profile.device')}</span>
           </div>
 
           {accessLog.length === 0 ? (
             <div style={{ padding: '24px 20px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
-              Nessun accesso registrato
+              {t('profile.no_access')}
             </div>
           ) : (
             accessLog.map((entry, i) => {

@@ -9,19 +9,11 @@ import { Badge }      from '../components/ui/Badge'
 import { Modal }      from '../components/ui/Modal'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useIsMobile } from '../hooks/useIsMobile'
-import { useCurrentRole } from '../hooks/useCurrentRole'
+import { useCurrentRole, useT } from '../hooks/useCurrentRole'
 import { FormField, Input, Select, TextArea } from '../components/ui/FormField'
 import { notifyProgettoPipelineAdvance } from '../lib/notifications'
 
 const ADMIN_EMAIL = 'lorenzo@agentics.eu.com'
-
-const statoBadge: Record<StatoProgetto, { label: string; color: 'green' | 'blue' | 'yellow' | 'gray' | 'orange' }> = {
-  cliente_demo:   { label: 'Cliente Demo',   color: 'yellow' },
-  demo_accettata: { label: 'Demo Accettata', color: 'orange' },
-  firmato:        { label: 'Firmato',        color: 'green' },
-  completato:     { label: 'Completato',     color: 'blue' },
-  archiviato:     { label: 'Archiviato',     color: 'gray' },
-}
 
 type Form = {
   cliente_id: string | null; nome: string; descrizione: string | null
@@ -51,7 +43,16 @@ interface Props {
 export const ProgettiPage = ({ onViewProgetto }: Props) => {
   const isMobile = useIsMobile()
   const { role } = useCurrentRole()
+  const t = useT()
   const isDeveloper = role === 'developer'
+
+  const statoBadge: Record<StatoProgetto, { label: string; color: 'green' | 'blue' | 'yellow' | 'gray' | 'orange' }> = {
+    cliente_demo:   { label: t('project_status.cliente_demo'),   color: 'yellow' },
+    demo_accettata: { label: t('project_status.demo_accettata'), color: 'orange' },
+    firmato:        { label: t('project_status.firmato'),        color: 'green' },
+    completato:     { label: t('project_status.completato'),     color: 'blue' },
+    archiviato:     { label: t('project_status.archiviato'),     color: 'gray' },
+  }
   const [rows, setRows]         = useState<Progetto[]>([])
   const [clienti, setClienti]   = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
   const [loading, setLoading]   = useState(true)
@@ -144,26 +145,26 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
       <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {errors._form && <p style={{ fontSize: 12, color: '#DC2626' }}>{errors._form}</p>}
 
-        <FormField label="Nome progetto" required error={errors.nome}>
-          <Input value={form.nome} onChange={f('nome')} placeholder="Nome del progetto" maxLength={200} required />
+        <FormField label={t('projects.name')} required error={errors.nome}>
+          <Input value={form.nome} onChange={f('nome')} placeholder={t('projects.name_ph')} maxLength={200} required />
         </FormField>
 
-        <FormField label="Cliente" error={errors.cliente_id}>
+        <FormField label={t('projects.client')} error={errors.cliente_id}>
           <Select value={form.cliente_id ?? ''} onChange={f('cliente_id')}>
-            <option value="">— Seleziona cliente —</option>
+            <option value="">{t('projects.client_ph')}</option>
             {clienti.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </Select>
         </FormField>
 
-        <FormField label="Descrizione" error={errors.descrizione}>
-          <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder="Breve descrizione del progetto..." maxLength={2000} />
+        <FormField label={t('projects.description')} error={errors.descrizione}>
+          <TextArea value={form.descrizione ?? ''} onChange={f('descrizione')} placeholder={t('projects.description_ph')} maxLength={2000} />
         </FormField>
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
-          <FormField label="Data inizio" error={errors.data_inizio}>
+          <FormField label={t('projects.start_date')} error={errors.data_inizio}>
             <Input type="date" value={form.data_inizio ?? ''} onChange={f('data_inizio')} />
           </FormField>
-          <FormField label="Data fine prevista" error={errors.data_fine}>
+          <FormField label={t('projects.end_date')} error={errors.data_fine}>
             <Input type="date" value={form.data_fine ?? ''} onChange={f('data_fine')} />
           </FormField>
         </div>
@@ -171,37 +172,37 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
         {isEditing && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
-              <FormField label="Stato" error={errors.stato}>
+              <FormField label={t('projects.status')} error={errors.stato}>
                 <Select value={form.stato} onChange={f('stato')}>
-                  <option value="cliente_demo">Cliente Demo</option>
-                  <option value="demo_accettata">Demo Accettata</option>
-                  <option value="firmato">Firmato</option>
-                  <option value="completato">Completato</option>
-                  <option value="archiviato">Archiviato</option>
+                  <option value="cliente_demo">{t('project_status.cliente_demo')}</option>
+                  <option value="demo_accettata">{t('project_status.demo_accettata')}</option>
+                  <option value="firmato">{t('project_status.firmato')}</option>
+                  <option value="completato">{t('project_status.completato')}</option>
+                  <option value="archiviato">{t('project_status.archiviato')}</option>
                 </Select>
               </FormField>
-              <FormField label="Priorità" error={errors.priorita_progetto}>
+              <FormField label={t('projects.priority')} error={errors.priorita_progetto}>
                 <Select value={form.priorita_progetto} onChange={f('priorita_progetto')}>
-                  <option value="alta">Alta</option>
-                  <option value="media">Media</option>
-                  <option value="bassa">Bassa</option>
+                  <option value="alta">{t('priority.alta')}</option>
+                  <option value="media">{t('priority.media')}</option>
+                  <option value="bassa">{t('priority.bassa')}</option>
                 </Select>
               </FormField>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
-              <FormField label="Pagamento mensile (€)" error={errors.pagamento_mensile} hint="Importo mensile dal cliente">
+              <FormField label={t('projects.payment')} error={errors.pagamento_mensile} hint={t('projects.payment_hint')}>
                 <Input type="number" step="0.01" value={form.pagamento_mensile ?? ''} onChange={f('pagamento_mensile')} placeholder="0.00" />
               </FormField>
-              <FormField label="Responsabile" error={errors.responsabile}>
-                <Input value={form.responsabile ?? ''} onChange={f('responsabile')} placeholder="Nome responsabile" />
+              <FormField label={t('projects.manager')} error={errors.responsabile}>
+                <Input value={form.responsabile ?? ''} onChange={f('responsabile')} placeholder={t('projects.manager_ph')} />
               </FormField>
             </div>
           </>
         )}
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
-          <Button type="button" variant="ghost" onClick={() => setModal(false)}>Annulla</Button>
-          <Button type="submit" disabled={saving}>{saving ? 'Salvataggio...' : isEditing ? 'Salva modifiche' : 'Crea progetto'}</Button>
+          <Button type="button" variant="ghost" onClick={() => setModal(false)}>{t('common.cancel')}</Button>
+          <Button type="submit" disabled={saving}>{saving ? t('common.saving') : isEditing ? t('projects.save_edit') : t('projects.create')}</Button>
         </div>
       </form>
     )
@@ -211,14 +212,14 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
     <div>
       {!isDeveloper && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-          <Button onClick={openNew}><Plus className="w-3.5 h-3.5" />Nuovo progetto</Button>
+          <Button onClick={openNew}><Plus className="w-3.5 h-3.5" />{t('projects.new')}</Button>
         </div>
       )}
 
       {loading
-        ? <div style={{ color: '#6C7F94', fontSize: 13 }}>Caricamento...</div>
+        ? <div style={{ color: '#6C7F94', fontSize: 13 }}>{t('common.loading')}</div>
         : rows.length === 0
-          ? <EmptyState icon={FolderOpen} title="Nessun progetto" description="Nessun progetto disponibile." action={isDeveloper ? undefined : { label: 'Nuovo progetto', onClick: openNew }} />
+          ? <EmptyState icon={FolderOpen} title={t('projects.empty')} description={t('projects.empty_desc')} action={isDeveloper ? undefined : { label: t('projects.new'), onClick: openNew }} />
           : isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #E5E7EB', backgroundColor: '#fff' }}>
               {rows.map(p => {
@@ -235,15 +236,15 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
                       </div>
                       {!isDeveloper && (
                         <div style={{ display: 'flex', gap: 0, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                          <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title="Modifica"><Pencil className="w-4 h-4" /></button>
-                          <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title="Elimina"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: '8px', display: 'flex', borderRadius: 6 }} title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '8px', display: 'flex', borderRadius: 6 }} title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
                         </div>
                       )}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                       <Badge label={b.label} color={b.color} />
                       {p.clienti?.nome && <span style={{ fontSize: 11, color: '#6C7F94' }}>{p.clienti.nome}</span>}
-                      {p.pagamento_mensile != null && <span style={{ fontSize: 11, fontWeight: 600, color: '#1A2332' }}>{fmtEur(p.pagamento_mensile)}/mese</span>}
+                      {p.pagamento_mensile != null && <span style={{ fontSize: 11, fontWeight: 600, color: '#1A2332' }}>{fmtEur(p.pagamento_mensile)}{t('projects.per_month')}</span>}
                     </div>
                   </div>
                 )
@@ -253,8 +254,8 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
             <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <div style={{ minWidth: 640 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 1fr 1fr 80px', padding: '10px 20px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
-                {['Progetto', 'Cliente', 'Stato', 'Periodo', 'Pag. mensile', ''].map(h => (
-                  <span key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
+                {[t('task.project'), t('projects.client'), t('task.status'), t('projects.period'), t('projects.monthly_pay'), ''].map((h, i) => (
+                  <span key={i} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C7F94' }}>{h}</span>
                 ))}
               </div>
               {rows.map(p => {
@@ -283,8 +284,8 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
                     <span style={{ fontSize: 13, fontWeight: 600, color: p.pagamento_mensile ? '#1A2332' : '#9CA3AF' }}>{fmtEur(p.pagamento_mensile)}</span>
                     {!isDeveloper && (
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title="Modifica"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title="Elimina"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 6, display: 'flex', borderRadius: 4 }} title={t('common.edit')}><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeleteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 6, display: 'flex', borderRadius: 4 }} title={t('common.delete')}><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     )}
                   </div>
@@ -295,15 +296,15 @@ export const ProgettiPage = ({ onViewProgetto }: Props) => {
           )
       }
 
-      <Modal open={modal} onClose={() => setModal(false)} title={isEditing ? 'Modifica progetto' : 'Nuovo progetto'} width={isMobile ? 'calc(100vw - 32px)' : '560px'}>
+      <Modal open={modal} onClose={() => setModal(false)} title={isEditing ? t('projects.edit') : t('projects.new')} width={isMobile ? 'calc(100vw - 32px)' : '560px'}>
         {renderForm()}
       </Modal>
 
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Elimina progetto" width="360px">
-        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Sei sicuro di voler eliminare questo progetto? L'operazione non è reversibile.</p>
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title={t('projects.delete')} width="360px">
+        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>{t('projects.delete_confirm')}</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" onClick={() => setDeleteId(null)}>Annulla</Button>
-          <Button variant="danger" onClick={remove}>Elimina</Button>
+          <Button variant="ghost" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
+          <Button variant="danger" onClick={remove}>{t('common.delete')}</Button>
         </div>
       </Modal>
     </div>
