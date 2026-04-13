@@ -260,6 +260,51 @@ const translations: Record<string, Record<Locale, string>> = {
   'project_status.firmato':        { it: 'Firmato',         en: 'Signed' },
   'project_status.completato':     { it: 'Completato',      en: 'Completed' },
   'project_status.archiviato':     { it: 'Archiviato',      en: 'Archived' },
+
+  // ── HR CRM ────────────────────────────────────────────────
+  'nav.hr':               { it: 'HR',                         en: 'HR' },
+  'page.hr':              { it: 'HR — Gestione Contatti',     en: 'HR — Contact Management' },
+
+  'hr.new':               { it: 'Nuovo contatto',             en: 'New contact' },
+  'hr.edit':              { it: 'Modifica contatto',          en: 'Edit contact' },
+  'hr.empty':             { it: 'Nessun contatto',            en: 'No contacts' },
+  'hr.empty_desc':        { it: 'Aggiungi il primo profilo al CRM HR.', en: 'Add the first profile to the HR CRM.' },
+  'hr.delete':            { it: 'Elimina contatto',           en: 'Delete contact' },
+  'hr.delete_confirm':    { it: "Eliminare questo contatto? L'operazione non è reversibile.", en: 'Delete this contact? This cannot be undone.' },
+  'hr.search_ph':         { it: 'Cerca per nome, ruolo, competenze...', en: 'Search by name, role, skills...' },
+
+  'hr.field.nome':             { it: 'Nome',                  en: 'First name' },
+  'hr.field.cognome':          { it: 'Cognome',               en: 'Last name' },
+  'hr.field.email':            { it: 'Email',                 en: 'Email' },
+  'hr.field.telefono':         { it: 'Telefono',              en: 'Phone' },
+  'hr.field.ruolo_cercato':    { it: 'Ruolo cercato',         en: 'Role sought' },
+  'hr.field.tipo':             { it: 'Tipo',                  en: 'Type' },
+  'hr.field.stato':            { it: 'Stato',                 en: 'Status' },
+  'hr.field.segnalato_da':     { it: 'Segnalato da',          en: 'Referred by' },
+  'hr.field.linkedin':         { it: 'LinkedIn',              en: 'LinkedIn' },
+  'hr.field.competenze':       { it: 'Competenze',            en: 'Skills' },
+  'hr.field.competenze_ph':    { it: 'Aggiungi competenza e premi Invio', en: 'Add skill and press Enter' },
+  'hr.field.disponibilita':    { it: 'Disponibilità',         en: 'Availability' },
+  'hr.field.tariffa':          { it: 'Tariffa richiesta (€/h)', en: 'Rate requested (€/h)' },
+  'hr.field.primo_contatto':   { it: 'Data primo contatto',   en: 'First contact date' },
+  'hr.field.followup':         { it: 'Prossimo follow-up',    en: 'Next follow-up' },
+  'hr.field.valutazione':      { it: 'Valutazione',           en: 'Rating' },
+  'hr.field.note':             { it: 'Note',                  en: 'Notes' },
+
+  'hr.tipo.candidato':    { it: 'Candidato',                  en: 'Candidate' },
+  'hr.tipo.segnalato':    { it: 'Segnalato',                  en: 'Referred' },
+  'hr.tipo.freelance':    { it: 'Freelance',                  en: 'Freelance' },
+  'hr.tipo.consulente':   { it: 'Consulente',                 en: 'Consultant' },
+  'hr.tipo.stagista':     { it: 'Stagista',                   en: 'Intern' },
+  'hr.tipo.altro':        { it: 'Altro',                      en: 'Other' },
+
+  'hr.stato.nuovo':       { it: 'Nuovo',                      en: 'New' },
+  'hr.stato.contattato':  { it: 'Contattato',                 en: 'Contacted' },
+  'hr.stato.colloquio':   { it: 'Colloquio',                  en: 'Interview' },
+  'hr.stato.offerta':     { it: 'Offerta',                    en: 'Offer' },
+  'hr.stato.assunto':     { it: 'Assunto',                    en: 'Hired' },
+  'hr.stato.non_idoneo':  { it: 'Non idoneo',                 en: 'Not suitable' },
+  'hr.stato.archiviato':  { it: 'Archiviato',                 en: 'Archived' },
 }
 
 export function t(key: string, locale: Locale): string {

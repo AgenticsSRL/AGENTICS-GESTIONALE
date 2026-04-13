@@ -16,6 +16,7 @@ import { CalendarioPage }            from '../../pages/CalendarioPage'
 import { ProfiloPage }               from '../../pages/ProfiloPage'
 import { GestioneSviluppatoriPage }  from '../../pages/GestioneSviluppatoriPage'
 import { GestioneUtentiPage }        from '../../pages/GestioneUtentiPage'
+import { HRPage }                    from '../../pages/HRPage'
 import { ChangePasswordPage }        from '../../pages/ChangePasswordPage'
 import { useIdleTimeout }            from '../../hooks/useIdleTimeout'
 import { useIsMobile }               from '../../hooks/useIsMobile'
@@ -89,6 +90,7 @@ export const Shell = () => {
       case 'profilo':                return <ProfiloPage />
       case 'gestione_sviluppatori':  return <GestioneSviluppatoriPage />
       case 'gestione_utenti':        return <GestioneUtentiPage />
+      case 'hr':                     return <HRPage />
     }
   }
 

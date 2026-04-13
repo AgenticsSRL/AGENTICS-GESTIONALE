@@ -148,6 +148,7 @@ const fmtFileSize = (bytes: number | null) => {
 /* ─── Team role helpers ─── */
 
 const RUOLI_TEAM: { value: RuoloTeam; label: string }[] = [
+  { value: 'supervisor', label: 'Supervisor' },
   { value: 'project_manager', label: 'Project Manager' },
   { value: 'developer_frontend', label: 'Developer Frontend' },
   { value: 'developer_backend', label: 'Developer Backend' },
@@ -586,8 +587,11 @@ const OverviewTab = ({ progetto, onSave, isDeveloper = false }: { progetto: Prog
   }
   const pb = prioBadge[prio] ?? prioBadge.media
 
-  const teamStored = progetto.team_membri as { members?: TeamMember[] } | null
-  const activeTeam = teamStored?.members?.filter(m => m.attivo) ?? []
+  const [overviewTeamCount, setOverviewTeamCount] = useState(0)
+  useEffect(() => {
+    supabase.from('project_members').select('user_id', { count: 'exact', head: true }).eq('project_id', progetto.id)
+      .then(({ count }) => setOverviewTeamCount((count ?? 0) + 1))
+  }, [progetto.id])
 
   const totalSpese = spese.reduce((s, x) => s + x.importo, 0)
   const now = new Date()
@@ -705,7 +709,7 @@ const OverviewTab = ({ progetto, onSave, isDeveloper = false }: { progetto: Prog
           <div style={{ padding: isMobile ? '0 16px' : '0 24px' }}>
             <InfoRow label="Cliente" value={progetto.clienti?.nome ?? '—'} />
             <InfoRow label="Responsabile" value={progetto.responsabile ?? '—'} />
-            <InfoRow label="Team" value={activeTeam.length > 0 ? `${activeTeam.length} membri` : (progetto.team?.length ? progetto.team.join(', ') : '—')} />
+            <InfoRow label="Team" value={overviewTeamCount > 0 ? `${overviewTeamCount} membri` : '—'} />
             <InfoRow label="Priorità" value={<Badge label={pb.label} color={pb.color} />} />
             <InfoRow label="Data inizio" value={fmtDate(progetto.data_inizio)} />
             <InfoRow label="Data fine" value={fmtDate(progetto.data_fine)} />
@@ -1923,21 +1927,84 @@ const SpeseProgettoTab = ({ progetto, onSave, logActivity }: {
 
 const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave: () => void; logActivity: (a: string, d?: string) => Promise<void> }) => {
   const isMobile = useIsMobile()
+
+  interface AutoMember { user_id: string; email: string; nome: string; cognome: string; role: 'supervisor' | 'developer' }
+  const [autoMembers, setAutoMembers] = useState<AutoMember[]>([])
+  const [loadingAuto, setLoadingAuto] = useState(true)
+
   const stored = progetto.team_membri as { members?: TeamMember[] } | null
-  const [members, setMembers] = useState<TeamMember[]>(stored?.members ?? [])
+  const [extraMembers, setExtraMembers] = useState<TeamMember[]>(stored?.members ?? [])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<TeamMember | null>(null)
   const [form, setForm] = useState<TeamMember>(emptyMember())
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [viewId, setViewId] = useState<string | null>(null)
 
-  const activeMembers = members.filter(m => m.attivo)
-  const inactiveMembers = members.filter(m => !m.attivo)
+  useEffect(() => {
+    (async () => {
+      setLoadingAuto(true)
+      const result: AutoMember[] = []
+
+      const { data: adminProfile } = await supabase
+        .from('user_profiles')
+        .select('user_id, nome, cognome')
+        .eq('ruolo', 'admin')
+        .limit(1)
+        .maybeSingle()
+
+      result.push({
+        user_id: adminProfile?.user_id ?? 'admin',
+        email: ADMIN_EMAIL,
+        nome: adminProfile?.nome ?? 'Lorenzo',
+        cognome: adminProfile?.cognome ?? 'Balduzzi',
+        role: 'supervisor',
+      })
+
+      const { data: members } = await supabase
+        .from('project_members')
+        .select('user_id')
+        .eq('project_id', progetto.id)
+
+      if (members && members.length > 0) {
+        const uids = members.map(m => m.user_id)
+        const { data: profiles } = await supabase
+          .from('developer_profiles')
+          .select('user_id, email')
+          .in('user_id', uids)
+
+        const { data: userProfiles } = await supabase
+          .from('user_profiles')
+          .select('user_id, nome, cognome')
+          .in('user_id', uids)
+
+        const upMap: Record<string, { nome: string; cognome: string }> = {}
+        for (const up of userProfiles ?? []) upMap[up.user_id] = { nome: up.nome ?? '', cognome: up.cognome ?? '' }
+
+        for (const dp of profiles ?? []) {
+          const up = upMap[dp.user_id] ?? { nome: '', cognome: '' }
+          result.push({
+            user_id: dp.user_id,
+            email: dp.email,
+            nome: up.nome || dp.email.split('@')[0],
+            cognome: up.cognome,
+            role: 'developer',
+          })
+        }
+      }
+
+      setAutoMembers(result)
+      setLoadingAuto(false)
+    })()
+  }, [progetto.id])
+
+  const totalCount = autoMembers.length + extraMembers.filter(m => m.attivo).length
+  const devCount = autoMembers.filter(m => m.role === 'developer').length
+  const extraActive = extraMembers.filter(m => m.attivo)
 
   const ruoliCount: Record<string, number> = {}
-  activeMembers.forEach(m => { ruoliCount[m.ruolo] = (ruoliCount[m.ruolo] ?? 0) + 1 })
+  autoMembers.forEach(m => { ruoliCount[m.role === 'supervisor' ? 'supervisor' : 'developer_fullstack'] = (ruoliCount[m.role === 'supervisor' ? 'supervisor' : 'developer_fullstack'] ?? 0) + 1 })
+  extraActive.forEach(m => { ruoliCount[m.ruolo] = (ruoliCount[m.ruolo] ?? 0) + 1 })
 
   const save = async (updated: TeamMember[]) => {
     setSaving(true)
@@ -1950,7 +2017,7 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
       setSaving(false)
       return
     }
-    await logActivity('Team aggiornato', `${updated.filter(m => m.attivo).length} membri attivi`)
+    await logActivity('Team aggiornato', `${updated.filter(m => m.attivo).length} membri extra`)
     setSaving(false)
     onSave()
   }
@@ -1972,37 +2039,29 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
     if (!form.nome.trim() || !form.cognome.trim()) return
     let updated: TeamMember[]
     if (editing) {
-      updated = members.map(m => m.id === editing.id ? { ...form } : m)
+      updated = extraMembers.map(m => m.id === editing.id ? { ...form } : m)
     } else {
-      updated = [...members, { ...form }]
+      updated = [...extraMembers, { ...form }]
     }
-    setMembers(updated)
+    setExtraMembers(updated)
     setModal(false)
     await save(updated)
   }
 
   const removeMember = async () => {
     if (!deleteId) return
-    const m = members.find(x => x.id === deleteId)
-    const updated = members.filter(x => x.id !== deleteId)
-    setMembers(updated)
+    const m = extraMembers.find(x => x.id === deleteId)
+    const updated = extraMembers.filter(x => x.id !== deleteId)
+    setExtraMembers(updated)
     setDeleteId(null)
     if (m) await logActivity('Membro rimosso dal team', `${m.nome} ${m.cognome}`)
-    await save(updated)
-  }
-
-  const toggleAttivo = async (id: string) => {
-    const updated = members.map(m => m.id === id ? { ...m, attivo: !m.attivo } : m)
-    setMembers(updated)
-    const m = updated.find(x => x.id === id)
-    if (m) await logActivity(m.attivo ? 'Membro riattivato' : 'Membro disattivato', `${m.nome} ${m.cognome}`)
     await save(updated)
   }
 
   const ff = (k: keyof TeamMember) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }))
 
-  const viewMember = members.find(m => m.id === viewId)
+  const supervisorColor = '#7C3AED'
 
   return (
     <div>
@@ -2010,16 +2069,15 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
         <div style={{ fontSize: 12, color: '#DC2626', padding: '10px 16px', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', marginBottom: 16 }}>{saveError}</div>
       )}
 
-      {/* Status bar */}
       <Card style={{ padding: isMobile ? '14px 16px' : '16px 24px', marginBottom: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? 12 : 24 }}>
           <div>
-            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Attivi</div>
-            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{activeMembers.length}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Totale team</div>
+            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{totalCount}</div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Totale</div>
-            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{members.length}</div>
+            <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Developer</div>
+            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, color: '#1A2332', marginTop: 2 }}>{devCount}</div>
           </div>
           <div>
             <div style={{ fontSize: 10, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ruoli</div>
@@ -2028,87 +2086,103 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
         </div>
       </Card>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16, gap: 8 }}>
-        {saving && <span style={{ fontSize: 12, color: '#6C7F94', alignSelf: 'center' }}>Salvataggio...</span>}
-        <Button size="sm" onClick={openNew}><Plus style={{ width: 12, height: 12 }} /> Aggiungi membro</Button>
-      </div>
-
-      {members.length === 0 ? (
-        <EmptyState icon={Users} title="Nessun membro nel team" description="Aggiungi le persone che lavorano su questo progetto." action={{ label: 'Aggiungi membro', onClick: openNew }} />
+      {loadingAuto ? (
+        <div style={{ fontSize: 13, color: '#6C7F94', padding: 20 }}>Caricamento team...</div>
       ) : (
         <>
-          {/* Active members */}
-          {activeMembers.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                Membri attivi ({activeMembers.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {activeMembers.map(m => (
-                  <Card key={m.id} style={{ padding: '16px 20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#1A2332', flexShrink: 0 }}>
-                          {m.nome.charAt(0).toUpperCase()}{m.cognome.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>{m.nome} {m.cognome}</div>
-                          <div style={{ fontSize: 11, color: '#6C7F94', marginTop: 1 }}>{ruoloLabel(m.ruolo)}{m.email ? ` · ${m.email}` : ''}</div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <button onClick={() => setViewId(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Dettaglio">
-                          <Eye style={{ width: 13, height: 13 }} />
-                        </button>
-                        <button onClick={() => openEdit(m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica">
-                          <Pencil style={{ width: 13, height: 13 }} />
-                        </button>
-                        <button onClick={() => toggleAttivo(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Disattiva">
-                          <EyeOff style={{ width: 13, height: 13 }} />
-                        </button>
-                        <button onClick={() => setDeleteId(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Rimuovi">
-                          <Trash2 style={{ width: 13, height: 13 }} />
-                        </button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+          {/* Auto-populated: Supervisor + Developers */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+              Team progetto ({autoMembers.length})
             </div>
-          )}
-
-          {/* Inactive members */}
-          {inactiveMembers.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                Non attivi ({inactiveMembers.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {inactiveMembers.map(m => (
-                  <Card key={m.id} style={{ padding: '16px 20px', opacity: 0.6 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#9CA3AF', flexShrink: 0 }}>
-                          {m.nome.charAt(0).toUpperCase()}{m.cognome.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#6C7F94' }}>{m.nome} {m.cognome}</div>
-                          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{ruoloLabel(m.ruolo)}{m.data_uscita ? ` · Uscita: ${fmtDate(m.data_uscita)}` : ''}</div>
-                        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {autoMembers.map(m => (
+                <Card key={m.user_id} style={{ padding: '16px 20px', borderLeft: m.role === 'supervisor' ? `3px solid ${supervisorColor}` : undefined }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        backgroundColor: m.role === 'supervisor' ? '#F5F3FF' : '#F3F4F6',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 700,
+                        color: m.role === 'supervisor' ? supervisorColor : '#1A2332',
+                        flexShrink: 0,
+                      }}>
+                        {(m.nome || '?').charAt(0).toUpperCase()}{(m.cognome || '').charAt(0).toUpperCase() || ''}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <button onClick={() => toggleAttivo(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Riattiva">
-                          <Eye style={{ width: 13, height: 13 }} />
-                        </button>
-                        <button onClick={() => setDeleteId(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Rimuovi">
-                          <Trash2 style={{ width: 13, height: 13 }} />
-                        </button>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2332' }}>
+                          {m.nome} {m.cognome}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6C7F94', marginTop: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                            padding: '2px 7px', borderRadius: 3,
+                            color: m.role === 'supervisor' ? supervisorColor : BRAND,
+                            backgroundColor: m.role === 'supervisor' ? '#F5F3FF' : '#EFF6FF',
+                            border: `1px solid ${m.role === 'supervisor' ? '#DDD6FE' : '#BFDBFE'}`,
+                          }}>
+                            {m.role === 'supervisor' ? 'Supervisor' : 'Developer'}
+                          </span>
+                          <span>{m.email}</span>
+                        </div>
                       </div>
                     </div>
-                  </Card>
-                ))}
-              </div>
+                    <div style={{
+                      fontSize: 10, fontWeight: 600, color: '#16A34A',
+                      backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0',
+                      padding: '3px 8px', borderRadius: 4,
+                    }}>
+                      ATTIVO
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Extra manual members */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Collaboratori extra ({extraActive.length})
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {saving && <span style={{ fontSize: 12, color: '#6C7F94' }}>Salvataggio...</span>}
+              <Button size="sm" onClick={openNew}><Plus style={{ width: 12, height: 12 }} /> Aggiungi</Button>
+            </div>
+          </div>
+
+          {extraMembers.length === 0 ? (
+            <Card style={{ padding: '20px', textAlign: 'center' }}>
+              <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>
+                Nessun collaboratore extra. Puoi aggiungere consulenti, designer o altri professionisti.
+              </p>
+            </Card>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {extraMembers.map(m => (
+                <Card key={m.id} style={{ padding: '16px 20px', opacity: m.attivo ? 1 : 0.6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: m.attivo ? '#1A2332' : '#9CA3AF', flexShrink: 0 }}>
+                        {m.nome.charAt(0).toUpperCase()}{m.cognome.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: m.attivo ? '#1A2332' : '#6C7F94' }}>{m.nome} {m.cognome}</div>
+                        <div style={{ fontSize: 11, color: '#6C7F94', marginTop: 1 }}>{ruoloLabel(m.ruolo)}{m.email ? ` · ${m.email}` : ''}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button onClick={() => openEdit(m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6C7F94', padding: 4, display: 'flex' }} title="Modifica">
+                        <Pencil style={{ width: 13, height: 13 }} />
+                      </button>
+                      <button onClick={() => setDeleteId(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 4, display: 'flex' }} title="Rimuovi">
+                        <Trash2 style={{ width: 13, height: 13 }} />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
 
@@ -2128,8 +2202,8 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
         </>
       )}
 
-      {/* Add / Edit modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica membro' : 'Aggiungi membro'} width="560px">
+      {/* Add / Edit extra member modal */}
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Modifica collaboratore' : 'Aggiungi collaboratore'} width="560px">
         <form onSubmit={saveMember} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <FormField label="Nome" required>
@@ -2141,7 +2215,7 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
           </div>
           <FormField label="Ruolo" required>
             <Select value={form.ruolo} onChange={ff('ruolo')}>
-              {RUOLI_TEAM.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              {RUOLI_TEAM.filter(r => r.value !== 'supervisor').map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </Select>
           </FormField>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -2160,19 +2234,6 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
               <Input type="date" value={form.data_ingresso} onChange={ff('data_ingresso')} />
             </FormField>
           </div>
-          {editing && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <FormField label="Data uscita">
-                <Input type="date" value={form.data_uscita ?? ''} onChange={e => setForm(p => ({ ...p, data_uscita: e.target.value || null }))} />
-              </FormField>
-              <FormField label="Stato">
-                <Select value={form.attivo ? 'attivo' : 'non_attivo'} onChange={e => setForm(p => ({ ...p, attivo: e.target.value === 'attivo' }))}>
-                  <option value="attivo">Attivo</option>
-                  <option value="non_attivo">Non attivo</option>
-                </Select>
-              </FormField>
-            </div>
-          )}
           <FormField label="Note">
             <TextArea value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} maxLength={500} style={{ minHeight: 80 }} />
           </FormField>
@@ -2183,46 +2244,9 @@ const TeamTab = ({ progetto, onSave, logActivity }: { progetto: Progetto; onSave
         </form>
       </Modal>
 
-      {/* View member detail modal */}
-      <Modal open={!!viewMember} onClose={() => setViewId(null)} title={viewMember ? `${viewMember.nome} ${viewMember.cognome}` : ''} width="480px">
-        {viewMember && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#1A2332' }}>
-                {viewMember.nome.charAt(0).toUpperCase()}{viewMember.cognome.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#1A2332' }}>{viewMember.nome} {viewMember.cognome}</div>
-                <div style={{ fontSize: 12, color: '#6C7F94' }}>{ruoloLabel(viewMember.ruolo)}</div>
-              </div>
-            </div>
-            <div style={{ borderTop: '1px solid #F3F4F6' }}>
-              <InfoRow label="Email" value={viewMember.email || '—'} />
-              <InfoRow label="Telefono" value={viewMember.telefono || '—'} />
-              <InfoRow label="Tariffa oraria" value={viewMember.tariffa_oraria != null ? `${viewMember.tariffa_oraria.toFixed(2)} €/h` : '—'} />
-              <InfoRow label="Data ingresso" value={fmtDate(viewMember.data_ingresso)} />
-              <InfoRow label="Data uscita" value={viewMember.data_uscita ? fmtDate(viewMember.data_uscita) : '—'} />
-              <InfoRow label="Stato" value={viewMember.attivo ? 'Attivo' : 'Non attivo'} />
-            </div>
-            {viewMember.note && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, color: '#6C7F94', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Note</div>
-                <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{viewMember.note}</div>
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 16 }}>
-              <Button variant="ghost" size="sm" onClick={() => { setViewId(null); openEdit(viewMember) }}>
-                <Pencil style={{ width: 12, height: 12 }} /> Modifica
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setViewId(null)}>Chiudi</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
       {/* Delete modal */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Rimuovi membro" width="360px">
-        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Rimuovere questo membro dal team del progetto?</p>
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Rimuovi collaboratore" width="360px">
+        <p style={{ fontSize: 13, color: '#4B5563', marginBottom: 20 }}>Rimuovere questo collaboratore dal team?</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={() => setDeleteId(null)}>Annulla</Button>
           <Button variant="danger" onClick={removeMember}>Rimuovi</Button>

@@ -239,7 +239,7 @@ export function buildEmailHtml(p: EmailParams): string {
                   </p>
                 </td>
                 <td align="right" valign="middle">
-                  <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:11px;color:#CBD5E1;letter-spacing:0.3px;">agentics.eu</p>
+                  <p style="margin:0;font-family:'DM Sans',Arial,sans-serif;font-size:11px;color:#CBD5E1;letter-spacing:0.3px;">agentics.eu.com</p>
                 </td>
               </tr>
             </table>

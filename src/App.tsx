@@ -72,21 +72,11 @@ function App() {
     const hasVerifiedTotp = factors?.totp?.some(f => f.status === 'verified') ?? false
 
     if (!hasVerifiedTotp) {
-      // Developers don't need MFA — skip enrollment
-      const { data: roleRow } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
-      if (roleRow?.role === 'developer') {
-        setAuthState('authenticated')
+      const mobile = isMobilePlatform()
+      if (mobile && await isBiometricAvailable()) {
+        setAuthState('needs-biometric-enroll')
       } else {
-        const mobile = isMobilePlatform()
-        if (mobile && await isBiometricAvailable()) {
-          setAuthState('needs-biometric-enroll')
-        } else {
-          setAuthState('needs-mfa-enroll')
-        }
+        setAuthState('needs-mfa-enroll')
       }
     } else {
       setAuthState('authenticated')

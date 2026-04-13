@@ -216,6 +216,25 @@ export const progettoCredenzialeSchema = z.object({
   note: optionalNote,
 })
 
+export const contattoHRSchema = z.object({
+  nome,
+  cognome: trimmed.pipe(z.string().max(200, 'Massimo 200 caratteri')).transform(v => v || ''),
+  email: optionalEmail,
+  telefono: optionalPhone,
+  ruolo_cercato: optionalText,
+  tipo: z.enum(['candidato', 'segnalato', 'freelance', 'consulente', 'stagista', 'altro']),
+  stato: z.enum(['nuovo', 'contattato', 'colloquio', 'offerta', 'assunto', 'non_idoneo', 'archiviato']),
+  segnalato_da: optionalText,
+  linkedin: optionalUrl,
+  competenze: z.array(z.string().max(100)).max(30),
+  disponibilita: optionalText,
+  tariffa_richiesta: z.coerce.number().nonnegative('Non può essere negativo').finite().nullable().optional(),
+  data_primo_contatto: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato data non valido').nullable().optional().or(z.literal('').transform(() => null)),
+  prossimo_followup: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato data non valido').nullable().optional().or(z.literal('').transform(() => null)),
+  valutazione: z.coerce.number().int().min(1).max(5).nullable().optional(),
+  note: optionalNote,
+})
+
 export type ValidationErrors = Record<string, string>
 
 export function validate<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; errors: ValidationErrors } {

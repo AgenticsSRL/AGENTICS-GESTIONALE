@@ -167,12 +167,24 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
 
       const userId = user?.id ?? null
 
+      // Per developer: ottieni prima gli ID dei progetti assegnati (più affidabile dell'!inner join)
+      let devProjectIds: string[] = []
+      if (isDeveloper && userId) {
+        const { data: memberships } = await supabase
+          .from('project_members')
+          .select('project_id')
+          .eq('user_id', userId)
+        devProjectIds = (memberships ?? []).map((m: any) => m.project_id)
+      }
+
       const mieiTaskQuery = isAdmin
         ? supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').order('scadenza', { ascending: true }).limit(20)
         : supabase.from('task').select('id, titolo, scadenza, priorita, progetti(nome)').neq('stato', 'done').ilike('assegnatario', `%${userEmail}%`).order('scadenza', { ascending: true }).limit(20)
 
-      const progettiRecentiQuery = isDeveloper && userId
-        ? supabase.from('progetti').select('id, nome, stato, pagamento_mensile, clienti(nome), project_members!inner(user_id)').eq('project_members.user_id', userId).order('created_at', { ascending: false }).limit(6)
+      const progettiRecentiQuery = isDeveloper
+        ? (devProjectIds.length > 0
+            ? supabase.from('progetti').select('id, nome, stato, pagamento_mensile, clienti(nome)').in('id', devProjectIds).order('created_at', { ascending: false }).limit(6)
+            : Promise.resolve({ data: [] }))
         : supabase.from('progetti').select('id, nome, stato, pagamento_mensile, clienti(nome)').order('created_at', { ascending: false }).limit(6)
 
       const taskUrgentiQuery = isDeveloper
@@ -187,8 +199,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         ? supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).or(`user_id.eq.${userId},partecipanti.ilike.*${userEmail}*`).order('data_inizio', { ascending: true }).limit(5)
         : supabase.from('calendario_eventi').select('id, titolo, data_inizio, ora_inizio, tipo, colore').gte('data_inizio', oggiISO).order('data_inizio', { ascending: true }).limit(5)
 
-      const tuttiProgettiQuery = isDeveloper && userId
-        ? supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti, project_members!inner(user_id)').eq('project_members.user_id', userId)
+      const tuttiProgettiQuery = isDeveloper
+        ? (devProjectIds.length > 0
+            ? supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti').in('id', devProjectIds)
+            : Promise.resolve({ data: [] }))
         : supabase.from('progetti').select('id, stato, pagamento_mensile, spese_ricorrenti')
 
       const tuttiTaskQuery = isDeveloper && userEmail
@@ -241,6 +255,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
           if (r.attiva === false) continue
           ricorrentiMese += r.importo / (freqDiv[r.frequenza ?? 'mensile'] ?? 1)
         }
+      }
+
+      // Per developer: conta tutti i progetti assegnati indipendentemente dallo stato
+      if (isDeveloper) {
+        progettiAttivi = (tuttiProgetti ?? []).length
       }
 
       const speseMese = (speseMeseData ?? []).reduce((s: number, x: any) => s + (Number(x.importo) || 0), 0)

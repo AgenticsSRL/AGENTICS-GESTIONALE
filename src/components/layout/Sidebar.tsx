@@ -15,6 +15,7 @@ export type Page =
   | 'spunti'
   | 'sicurezza'
   | 'security_events'
+  | 'hr'
   | 'calendario'
   | 'profilo'
   | 'gestione_sviluppatori'
@@ -31,6 +32,7 @@ const navItemI18nKey: Record<string, string> = {
   spunti: 'nav.spunti',
   sicurezza: 'nav.sicurezza',
   security_events: 'nav.security_events',
+  hr: 'nav.hr',
   calendario: 'nav.calendario',
   profilo: 'nav.profilo',
   gestione_sviluppatori: 'nav.sviluppatori',
@@ -46,6 +48,7 @@ const navItems: { id: Page; adminOnly?: boolean; developerHidden?: boolean }[] =
   { id: 'spunti' },
   { id: 'sicurezza',             developerHidden: true },
   { id: 'security_events',       adminOnly: true },
+  { id: 'hr',                    developerHidden: true },
   { id: 'calendario' },
   { id: 'gestione_sviluppatori', adminOnly: true },
   { id: 'gestione_utenti',       adminOnly: true },

@@ -12,8 +12,16 @@ export interface CurrentRole {
 }
 
 let cachedRole: CurrentRole | null = null
+let cachedUserId: string | null = null
 
-export const clearRoleCache = () => { cachedRole = null }
+export const clearRoleCache = () => { cachedRole = null; cachedUserId = null }
+
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+    cachedRole = null
+    cachedUserId = null
+  }
+})
 
 export const useCurrentRole = (): CurrentRole => {
   const [state, setState] = useState<CurrentRole>(
@@ -21,14 +29,14 @@ export const useCurrentRole = (): CurrentRole => {
   )
 
   useEffect(() => {
-    if (cachedRole) { setState(cachedRole); return }
-
     const fetchRole = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         const s: CurrentRole = { role: null, mustChangePassword: false, locale: 'it', loading: false }
-        cachedRole = s; setState(s); return
+        cachedRole = s; cachedUserId = null; setState(s); return
       }
+
+      if (cachedRole && cachedUserId === user.id) { setState(cachedRole); return }
 
       const { data: roleRow } = await supabase
         .from('user_roles')
@@ -51,7 +59,7 @@ export const useCurrentRole = (): CurrentRole => {
       }
 
       const s: CurrentRole = { role, mustChangePassword, locale, loading: false }
-      cachedRole = s; setState(s)
+      cachedRole = s; cachedUserId = user.id; setState(s)
     }
 
     fetchRole()

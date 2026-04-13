@@ -93,7 +93,7 @@ export interface LegalDocument {
 }
 
 export type RuoloTeam =
-  | 'project_manager' | 'developer_frontend' | 'developer_backend' | 'developer_fullstack'
+  | 'supervisor' | 'project_manager' | 'developer_frontend' | 'developer_backend' | 'developer_fullstack'
   | 'designer' | 'devops' | 'qa_tester' | 'data_analyst' | 'ai_specialist'
   | 'marketing' | 'legal' | 'account_manager' | 'altro'
 
@@ -370,6 +370,47 @@ export interface AccessLogEntry {
 }
 
 export type TipoCredenziale = 'account' | 'api_key' | 'database' | 'server' | 'certificato' | 'altro'
+
+// ── HR CRM ────────────────────────────────────────────────────────────────
+export type StatoContattoHR =
+  | 'nuovo'
+  | 'contattato'
+  | 'colloquio'
+  | 'offerta'
+  | 'assunto'
+  | 'non_idoneo'
+  | 'archiviato'
+
+export type TipoContattoHR =
+  | 'candidato'
+  | 'segnalato'
+  | 'freelance'
+  | 'consulente'
+  | 'stagista'
+  | 'altro'
+
+export interface ContattoHR {
+  id: string
+  user_id: string
+  nome: string
+  cognome: string
+  email: string | null
+  telefono: string | null
+  ruolo_cercato: string | null
+  tipo: TipoContattoHR
+  stato: StatoContattoHR
+  segnalato_da: string | null
+  linkedin: string | null
+  competenze: string[]
+  disponibilita: string | null
+  tariffa_richiesta: number | null
+  data_primo_contatto: string | null
+  prossimo_followup: string | null
+  valutazione: number | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
 
 export interface ProgettoCredenziale {
   id: string
