@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, Trash2, UserCheck, Copy, Check, RefreshCw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { safeErrorMessage } from '../lib/errors'
+import { sendNotification } from '../lib/notifications'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { FormField, Input } from '../components/ui/FormField'
@@ -149,6 +150,33 @@ export const GestioneSviluppatoriPage = () => {
         .update({ lingua: inviteLingua })
         .eq('email', result.email)
     }
+
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const adminEmail = currentUser?.email ?? 'lorenzo@agentics.eu.com'
+    const now = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
+
+    sendNotification({
+      to: [adminEmail],
+      subject: `Nuovo sviluppatore creato: ${result.email}`,
+      params: {
+        notification_label: 'NUOVO SVILUPPATORE',
+        email_title: 'Account developer creato',
+        email_subtitle: `Credenziali iniziali per ${result.email}`,
+        recipient_name: 'Admin',
+        intro_text: `È stato creato un nuovo account sviluppatore nel gestionale. Di seguito le credenziali iniziali. La password dovrà essere cambiata al primo accesso.`,
+        update_type: 'Account Creato',
+        subject: result.email,
+        reference_code: `Lingua: ${inviteLingua === 'en' ? 'English' : 'Italiano'}`,
+        date: now,
+        status: 'Attivo',
+        message_body: `<strong>Email:</strong> ${result.email}<br><br><strong>Password temporanea:</strong> ${result.temp_password}<br><br>Lo sviluppatore dovrà cambiare la password al primo accesso e configurare l'autenticazione a due fattori.`,
+        next_steps: 'Comunica le credenziali allo sviluppatore in modo sicuro. Al primo login gli verrà richiesto di impostare una nuova password.',
+        cta_url: 'https://agenticsrl.com',
+        cta_label: 'Apri il Gestionale →',
+        secondary_note: 'Questa email contiene credenziali sensibili. Non inoltrarla.',
+        footer_text: 'Notifica automatica creazione account — gestionale Agentics.',
+      },
+    })
 
     setInviteResult({ email: result.email, temp_password: result.temp_password })
     load()

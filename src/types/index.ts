@@ -53,6 +53,8 @@ export interface Progetto {
   team: string[]
   priorita_progetto: PrioritaProgetto
   marginalita_stimata: number | null
+  commerciale: string | null
+  percentuale_commissione: number | null
   link_demo: string | null
   link_deploy: string | null
   spese_ricorrenti: Record<string, unknown>

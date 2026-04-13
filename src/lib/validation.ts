@@ -89,6 +89,9 @@ export const progettoSchema = z.object({
   team: z.array(z.string()).default([]),
   priorita_progetto: z.enum(['alta', 'media', 'bassa']).default('media'),
   marginalita_stimata: optionalAmount,
+  commerciale: optionalText,
+  percentuale_commissione: z.coerce.number().min(0, 'Min 0').max(100, 'Max 100').finite().nullable()
+    .or(z.literal('').transform(() => null)),
   link_demo: optionalUrl,
   link_deploy: optionalUrl,
 })

@@ -20,6 +20,7 @@ type Form = {
   stato: StatoProgetto; data_inizio: string | null; data_fine: string | null
   budget: number | null; pagamento_mensile: number | null
   responsabile: string | null; team: string[]; priorita_progetto: string; marginalita_stimata: number | null
+  commerciale: string | null; percentuale_commissione: number | null
   link_demo: string | null; link_deploy: string | null
 }
 
@@ -27,6 +28,7 @@ const emptyCreate: Form = {
   cliente_id: null, nome: '', descrizione: null, stato: 'cliente_demo',
   data_inizio: null, data_fine: null, budget: null, pagamento_mensile: null,
   responsabile: null, team: [], priorita_progetto: 'media', marginalita_stimata: null,
+  commerciale: null, percentuale_commissione: null,
   link_demo: null, link_deploy: null,
 }
 
