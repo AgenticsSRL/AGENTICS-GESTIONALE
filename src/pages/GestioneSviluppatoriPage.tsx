@@ -109,12 +109,13 @@ export const GestioneSviluppatoriPage = () => {
   useEffect(() => { load() }, [load])
 
   const callEdgeFunction = async (body: object) => {
+    // Force token refresh before calling edge function
+    await supabase.auth.refreshSession()
     const { data: { session } } = await supabase.auth.getSession()
     // #region agent log
     const exp = session?.access_token ? JSON.parse(atob(session.access_token.split('.')[1])).exp : null;
     const nowSec = Math.floor(Date.now() / 1000);
-    const aal = session?.access_token ? JSON.parse(atob(session.access_token.split('.')[1])).aal : null;
-    console.log('[DEBUG-5e512b] callEdgeFunction session', { hasSession: !!session, hasToken: !!session?.access_token, tokenExp: exp, nowSec, expired: exp ? nowSec > exp : 'no-token', secondsLeft: exp ? exp - nowSec : null, aal, url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-developer` });
+    console.log('[DEBUG-5e512b] callEdgeFunction session', { hasSession: !!session, hasToken: !!session?.access_token, tokenExp: exp, nowSec, expired: exp ? nowSec > exp : 'no-token', secondsLeft: exp ? exp - nowSec : null });
     // #endregion
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-developer`,
